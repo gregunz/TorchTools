@@ -8,19 +8,19 @@ class CachedDataset(Dataset):
 
     Note that data is not cloned/copied from the initial dataset.
     """
-    def __init__(self, dataset, init_caching=False):
-        self.wrapped_dataset = dataset
+    def __init__(self, dataset: Dataset, init_caching=False):
+        self.dataset = dataset
         self.cache = dict()
         if init_caching:
-            for idx, data in enumerate(tqdm(self.wrapped_dataset)):
+            for idx, data in enumerate(tqdm(self.dataset)):
                 self.cache[idx] = data
 
     def __getitem__(self, index):
         if index in self.cache:
             return self.cache[index]
-        data = self.wrapped_dataset[index]
+        data = self.dataset[index]
         self.cache[index] = data
         return data
 
     def __len__(self):
-        return len(self.wrapped_dataset)
+        return len(self.dataset)

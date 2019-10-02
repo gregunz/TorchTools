@@ -1,42 +1,41 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod, ABC
+from typing import Union, List
 
 import pytorch_lightning as pl
 import torch
+from torch.utils.data import DataLoader, Dataset
 
+from torch_tools import utils
 from ..datasets import BaseDataset
 
 
-class BaseModule(pl.LightningModule, ABC):
-
-    def __init__(self, dataset: BaseDataset, val_percentage: float):
+class BaseModule(pl.LightningModule, utils.AddArgs):
+    def __init__(self, tng_dataset: BaseDataset, tst_dataset: Dataset = None):
         super().__init__()
-        self.dataset = dataset
-        self.tng_data, self.val_data, self.tst_data = dataset.split(val_percentage)
+        self.tng_dataset = tng_dataset
+        self.tst_data = tst_dataset
 
+    @property
     @abstractmethod
-    def _name(self):
+    def name(self) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def forward(self, batch):  # TO-CHECK: maybe arguments should be different
+    def forward(self, x):  # TO-CHECK: maybe arguments should be *args
         """
 
-        :param batch:
+        :param x:
         :return:
         """
         raise NotImplementedError
 
     @abstractmethod
-    def tng_data_loader(self):
+    def tng_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
         raise NotImplementedError
 
     @abstractmethod
-    def tng_step(self, batch, batch_idx, optimizer_idx):
-        """ this method must return the loss that will be optimized (minimized) in a dict:
-        return {
-            'loss': loss, # required
-            'prog': {'tng_loss': loss, 'batch_nb': batch_nb} # optional
-        }
+    def tng_step(self, batch, batch_idx: int, optimizer_idx: int) -> torch.Tensor:
+        """
 
         :param batch: data from a batch of the dataloader
         :param batch_idx: index of the the batch
@@ -53,11 +52,11 @@ class BaseModule(pl.LightningModule, ABC):
         """
 
     @abstractmethod
-    def val_data_loader(self):
+    def val_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
         raise NotImplementedError
 
     @abstractmethod
-    def val_step(self, batch, batch_idx, optimizer_idx, global_step):
+    def val_step(self, batch, batch_idx: int, optimizer_idx: int, global_step: int) -> dict:
         """
 
         :param batch:
@@ -74,7 +73,7 @@ class BaseModule(pl.LightningModule, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def val_agg_outputs(self, outputs):
+    def val_agg_outputs(self, outputs: List[dict]) -> None:
         """
         This is where you have the opportunity to aggregate the outputs
         in order to log any metrics you wish
@@ -84,29 +83,17 @@ class BaseModule(pl.LightningModule, ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
-    def tst_data_loader(self):
-        raise NotImplementedError
+    def tst_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
+        return NotImplemented
 
-    @abstractmethod
-    def tst_step(self, batch, batch_idx, optimizer_idx):
-        raise NotImplementedError
+    def tst_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
+        return NotImplemented
 
-    @abstractmethod
-    def tst_agg_outputs(self, outputs):
-        raise NotImplementedError
+    def tst_agg_outputs(self, outputs: List[dict]) -> None:
+        return NotImplemented
 
-    @property
-    def name(self):
-        return self._name()
-
-    def infos(self):
-        return {
-            'dataset': self.dataset.name,
-            'tng_batch_size': len(self.tng_data),
-            'val_batch_size': len(self.val_data),
-            'tst_batch_size': len(self.tst_data),
-        }
+    def has_tst_data(self) -> bool:
+        return self.tst_data is not None
 
     @pl.data_loader
     def tng_dataloader(self):
@@ -147,8 +134,8 @@ class BaseModule(pl.LightningModule, ABC):
 
     def add_graph(self, exp):
         try:
-            from tensorboardX import SummaryWriter
             # using writer from tensorboardX because tensorboard graph are not working apparently
+            from tensorboardX import SummaryWriter
             writer = SummaryWriter(logdir=exp.log_dir)
             data_loader_iter = iter(self.tng_dataloader)
             x, _ = next(data_loader_iter)
@@ -158,13 +145,15 @@ class BaseModule(pl.LightningModule, ABC):
         finally:
             writer.close()
 
-    # not static for inheritance convenience
-    # @staticmethod
-    def stack_outputs(self, outputs):
-        return lambda metric_name: torch.stack([x[metric_name] for x in outputs])
 
     @staticmethod
     def __args_step(args):
+        """
+        Handling the case with multiple optimizer (by forcing optimizer_idx to be defined)
+
+        :param args:
+        :return:
+        """
         if len(args) == 2:
             args += (0,)
         assert len(args) == 3
