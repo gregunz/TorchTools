@@ -119,7 +119,7 @@ class BaseModule(pl.LightningModule, utils.AddArgs):
         return self.val_step(*args, global_step=val_step)
 
     def validation_end(self, outputs):
-        self.val_agg_outputs(outputs)
+        self.val_agg_outputs(outputs, AggFn(outputs))
         return {}
 
     @pl.data_loader
