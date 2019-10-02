@@ -65,7 +65,7 @@ class BaseTrainer(ABC):
         trainer = pl.Trainer(
             experiment=exp,
             max_nb_epochs=argz.epochs,
-            gpus=utils.int_to_flags(argz.gpus),
+            gpus=[i+1 for i in utils.int_to_flags(argz.gpus)],
             nb_sanity_val_steps=0,
             # distributed_backend='dp',
         )
