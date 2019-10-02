@@ -55,10 +55,10 @@ class SimpleModule(BaseModule):
         return optimizer
 
     def tng_data_loader(self):
-        return DataLoader(CachedDataset(self.tng_data), batch_size=self.tng_batch_size, shuffle=True, num_workers=0)
+        return DataLoader(self.tng_data, batch_size=self.tng_batch_size, shuffle=True, num_workers=8)
 
     def val_data_loader(self):
-        return DataLoader(CachedDataset(self.val_data), batch_size=self.val_batch_size, shuffle=True, num_workers=0)
+        return DataLoader(self.val_data, batch_size=self.val_batch_size, shuffle=True, num_workers=8)
 
     def tst_data_loader(self):
         if self.tst_data is None:
