@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import abstractmethod
 from typing import Union, List
 
 import pytorch_lightning as pl
@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from torch_tools import utils
+from .util import AggFn
 from ..datasets import BaseDataset
 
 
@@ -73,12 +74,13 @@ class BaseModule(pl.LightningModule, utils.AddArgs):
         raise NotImplementedError
 
     @abstractmethod
-    def val_agg_outputs(self, outputs: List[dict]) -> None:
+    def val_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> None:
         """
         This is where you have the opportunity to aggregate the outputs
         in order to log any metrics you wish
 
         :param outputs:
+        :param agg_fn:
         :return:
         """
         raise NotImplementedError
@@ -89,7 +91,7 @@ class BaseModule(pl.LightningModule, utils.AddArgs):
     def tst_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
         return NotImplemented
 
-    def tst_agg_outputs(self, outputs: List[dict]) -> None:
+    def tst_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> None:
         return NotImplemented
 
     def has_tst_data(self) -> bool:
@@ -129,7 +131,7 @@ class BaseModule(pl.LightningModule, utils.AddArgs):
         return self.tst_step(*args)
 
     def test_end(self, outputs):
-        self.tst_agg_outputs(outputs)
+        self.tst_agg_outputs(outputs, AggFn(outputs))
         return {}
 
     def add_graph(self, exp):
@@ -144,7 +146,6 @@ class BaseModule(pl.LightningModule, utils.AddArgs):
             raise Exception("Failed to save model graph: {}".format(e))
         finally:
             writer.close()
-
 
     @staticmethod
     def __args_step(args):

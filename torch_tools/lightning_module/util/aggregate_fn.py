@@ -1,9 +1,14 @@
+from typing import List
+
 import torch
 
 
-def stack_outputs(self, outputs):
-    return lambda metric_name: torch.stack([x[metric_name] for x in outputs], dim=0)
+class AggFn:
+    def __init__(self, outputs: List[dict]):
+        self.outputs = outputs
 
+    def stack(self, metric_name):
+        return torch.stack([x[metric_name] for x in self.outputs], dim=0)
 
-def cat_outputs(self, outputs):
-    return lambda metric_name: torch.cat([x[metric_name] for x in outputs], dim=0)
+    def cat(self, metric_name):
+        return torch.cat([x[metric_name] for x in self.outputs], dim=0)

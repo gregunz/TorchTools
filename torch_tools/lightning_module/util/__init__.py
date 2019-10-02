@@ -1,1 +1,1 @@
-from .aggregate_fn import stack_outputs, cat_outputs
+from .aggregate_fn import AggFn
