@@ -1,24 +1,36 @@
 from abc import abstractmethod
-from typing import Union, List
+from argparse import ArgumentParser
+from typing import Union, List, Optional
 
 import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from torch_tools import utils
 from .util import AggFn
-from ..datasets import BaseDataset
 
 
-class BaseModule(pl.LightningModule, utils.AddArgs):
-    def __init__(self, tng_dataset: BaseDataset, tst_dataset: Dataset = None):
+def _args_step(args):
+    """
+    Handling the case with multiple optimizer (by forcing optimizer_idx to be defined)
+
+    :param args:
+    :return:
+    """
+    if len(args) == 2:
+        args += (0,)
+    assert len(args) == 3
+    return args
+
+
+class BaseModule(pl.LightningModule):
+    def __init__(self, tng_dataset: Dataset, tst_dataset: Dataset = None):
         super().__init__()
         self.tng_dataset = tng_dataset
         self.tst_data = tst_dataset
 
-    @property
+    @staticmethod
     @abstractmethod
-    def name(self) -> str:
+    def add_args(parser: ArgumentParser):
         raise NotImplementedError
 
     @abstractmethod
@@ -74,7 +86,7 @@ class BaseModule(pl.LightningModule, utils.AddArgs):
         raise NotImplementedError
 
     @abstractmethod
-    def val_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> None:
+    def val_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> torch.Tensor:
         """
         This is where you have the opportunity to aggregate the outputs
         in order to log any metrics you wish
@@ -102,7 +114,7 @@ class BaseModule(pl.LightningModule, utils.AddArgs):
         return self.tng_data_loader()
 
     def training_step(self, *args):
-        args = self.__args_step(args)
+        args = _args_step(args)
         loss = self.tng_step(*args)
         return {
             'loss': loss
@@ -113,21 +125,25 @@ class BaseModule(pl.LightningModule, utils.AddArgs):
         return self.val_data_loader()
 
     def validation_step(self, *args):
-        args = self.__args_step(args)
+        args = _args_step(args)
         batch_idx = args[1]
         val_step = batch_idx + self.current_epoch * len(self.val_dataloader)
         return self.val_step(*args, global_step=val_step)
 
     def validation_end(self, outputs):
-        self.val_agg_outputs(outputs, AggFn(outputs))
-        return {}
+        val_loss = self.val_agg_outputs(outputs, AggFn(outputs))
+        return {
+            'val_loss': val_loss
+        }
 
     @pl.data_loader
     def test_dataloader(self):
+        if self.tst_data is None:
+            return None
         return self.tst_data_loader()
 
     def test_step(self, *args):
-        args = self.__args_step(args)
+        args = _args_step(args)
         return self.tst_step(*args)
 
     def test_end(self, outputs):
@@ -146,16 +162,3 @@ class BaseModule(pl.LightningModule, utils.AddArgs):
             raise Exception("Failed to save model graph: {}".format(e))
         finally:
             writer.close()
-
-    @staticmethod
-    def __args_step(args):
-        """
-        Handling the case with multiple optimizer (by forcing optimizer_idx to be defined)
-
-        :param args:
-        :return:
-        """
-        if len(args) == 2:
-            args += (0,)
-        assert len(args) == 3
-        return args
