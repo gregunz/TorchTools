@@ -13,7 +13,7 @@ class Concat(Dataset):
         for i, offset in enumerate(self.offsets):
             if index < offset:
                 if i > 0:
-                    index -= self.offsets[i-1]
+                    index -= self.offsets[i - 1]
                 return self.datasets[i][index]
         raise IndexError(f'{index} exceeds {self.length}')
 

@@ -8,6 +8,7 @@ class CachedDataset(Dataset):
 
     Note that data is not cloned/copied from the initial dataset.
     """
+
     def __init__(self, dataset: Dataset, init_caching=False):
         self.dataset = dataset
         self.cache = dict()

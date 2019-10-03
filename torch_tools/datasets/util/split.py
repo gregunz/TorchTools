@@ -1,17 +1,30 @@
+import random
+from itertools import accumulate
 from typing import Tuple
 
-from torch.utils.data import Dataset, Subset, random_split
+import torch
+from torch.utils.data import Dataset, Subset
+
+from torch_tools import utils
 
 
-def percentage_rdm_split(dataset: Dataset, percentage: float) -> Tuple[Subset, Subset]:
+def split(dataset: Dataset, percentage: float, seed: int = None) -> Tuple[Subset, Subset]:
     """
     Split a dataset into two random Subsets given a percentage.
 
     :param dataset:
     :param percentage:
+    :param seed:
     :return:
     """
     assert 0 < percentage < 1
+    prev_seed = random.randint(0, 1e9)
+    utils.set_seed(0 if seed is None else seed)
     val_length = int(round(percentage * len(dataset)))
-    tng_dataset, val_dataset = random_split(dataset, [len(dataset) - val_length, val_length])
-    return tng_dataset, val_dataset
+    lengths = [len(dataset) - val_length, val_length]
+
+    indices = torch.randperm(sum(lengths)).tolist()
+    tng_data, val_data = [Subset(dataset, indices[offset - length:offset])
+                          for offset, length in zip(accumulate(lengths), lengths)]
+    utils.set_seed(prev_seed)
+    return tng_data, val_data

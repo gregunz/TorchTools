@@ -8,12 +8,13 @@ class LazyTransformedDataset(Dataset):
 
     Note that data is not cloned/copied from the initial dataset.
     """
+
     def __init__(self, dataset: Dataset, transforms):
-        self.wrapped_dataset = dataset
+        self.dataset = dataset
         self.transforms = transforms
 
     def __getitem__(self, index):
-        return self.transforms(*self.wrapped_dataset[index])
+        return self.transforms(*self.dataset[index])
 
     def __len__(self):
-        return len(self.wrapped_dataset)
+        return len(self.dataset)
