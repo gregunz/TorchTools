@@ -9,7 +9,8 @@ class DCEncoder(nn.Module):
 
     Inspired from DCGAN implementation <https://arxiv.org/abs/1511.06434>
     """
-    def __init__(self, in_channels, latent_size=100, n_filters=64, n_pyramid=3):
+
+    def __init__(self, in_channels, latent_channels=100, n_filters=64, n_pyramid=3):
         super().__init__()
 
         self.model = nn.Sequential(*[
@@ -20,7 +21,7 @@ class DCEncoder(nn.Module):
             *[PyramidDown(n_filters * 2 ** i) for i in range(n_pyramid)],
 
             # check if this bias=False helps
-            nn.Conv2d(n_filters * 2 ** n_pyramid, latent_size, kernel_size=4, stride=1, padding=0, bias=False),
+            nn.Conv2d(n_filters * 2 ** n_pyramid, latent_channels, kernel_size=4, stride=1, padding=0, bias=False),
         ])
 
     def forward(self, x):
@@ -33,11 +34,13 @@ class DCDecoder(nn.Module):
 
     Inspired from DCGAN implementation <https://arxiv.org/abs/1511.06434>
     """
-    def __init__(self, out_channels, latent_size=100, n_filters=64, n_pyramid=3):
+
+    def __init__(self, out_channels, latent_channels=100, n_filters=64, n_pyramid=3):
         super().__init__()
 
         self.model = nn.Sequential(*[
-            nn.ConvTranspose2d(latent_size, n_filters * 2 ** n_pyramid, kernel_size=4, stride=1, padding=0, bias=False),
+            nn.ConvTranspose2d(latent_channels, n_filters * 2 ** n_pyramid, kernel_size=4, stride=1, padding=0,
+                               bias=False),
             nn.BatchNorm2d(n_filters * 2 ** n_pyramid),
             nn.ReLU(inplace=True),
 

@@ -9,5 +9,5 @@ class Print(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         print('[DEBUG]')
         print(f'type = {type(x)}')
-        print(f'x = {self.fn(x)}')
+        print(f'fn(x) = {self.fn(x)}')
         return x
