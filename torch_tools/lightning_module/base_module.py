@@ -1,10 +1,9 @@
 from abc import abstractmethod
-from argparse import ArgumentParser
-from typing import Union, List, Optional
+from typing import Union, List
 
 import pytorch_lightning as pl
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from .util import AggFn
 
@@ -23,15 +22,8 @@ def _args_step(args):
 
 
 class BaseModule(pl.LightningModule):
-    def __init__(self, tng_dataset: Dataset, tst_dataset: Dataset = None):
+    def __init__(self):
         super().__init__()
-        self.tng_dataset = tng_dataset
-        self.tst_data = tst_dataset
-
-    @staticmethod
-    @abstractmethod
-    def add_args(parser: ArgumentParser):
-        raise NotImplementedError
 
     @abstractmethod
     def forward(self, x):  # TO-CHECK: maybe arguments should be *args
@@ -115,10 +107,8 @@ class BaseModule(pl.LightningModule):
 
     def training_step(self, *args):
         args = _args_step(args)
-        loss = self.tng_step(*args)
-        return {
-            'loss': loss
-        }
+        tqdm_logs = self.tng_step(*args)
+        return {}, tqdm_logs
 
     @pl.data_loader
     def val_dataloader(self):
@@ -131,10 +121,8 @@ class BaseModule(pl.LightningModule):
         return self.val_step(*args, global_step=val_step)
 
     def validation_end(self, outputs):
-        val_loss = self.val_agg_outputs(outputs, AggFn(outputs))
-        return {
-            'val_loss': val_loss
-        }
+        tqdm_logs = self.val_agg_outputs(outputs, AggFn(outputs))
+        return {}, tqdm_logs
 
     @pl.data_loader
     def test_dataloader(self):
@@ -157,7 +145,7 @@ class BaseModule(pl.LightningModule):
             writer = SummaryWriter(logdir=exp.log_dir)
             data_loader_iter = iter(self.tng_dataloader)
             x, _ = next(data_loader_iter)
-            writer.add_graph(self, x)
+            # writer.add_graph(self, x)
         except Exception as e:
             raise Exception("Failed to save model graph: {}".format(e))
         finally:

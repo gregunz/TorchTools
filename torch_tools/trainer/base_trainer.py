@@ -6,10 +6,12 @@ from typing import List, Tuple
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from test_tube import Experiment, HyperOptArgumentParser
+from pytorch_lightning.logging import TestTubeLogger
+from test_tube import HyperOptArgumentParser
 
+from torch_tools import notify
+from torch_tools.lightning_module import BaseModule
 from .. import utils
-from ..lightning_module import BaseModule
 
 
 class BaseTrainer:
@@ -47,9 +49,9 @@ class BaseTrainer:
         utils.set_seed(seed)
 
     def _init_parser(self, strategy: str):
-        parser = HyperOptArgumentParser(strategy=strategy)
+        parser = HyperOptArgumentParser(strategy=strategy, conflict_handler='resolve')
 
-        default_epochs = 100
+        default_epochs = 10
         parser.add_argument('--epochs', type=int, default=default_epochs,
                             help=f'number of epochs to train (default: {default_epochs})')
 
@@ -87,44 +89,43 @@ class BaseTrainer:
         if epochs is None:
             epochs = self.argz.epochs
 
-
-        exp = Experiment(
+        logger = TestTubeLogger(
             save_dir=self.argz.log_dir,
             name=exp_name,
             version=version,
         )
-        exp.argparse(argparser=self.argz)
-        module.cpu().add_graph(exp)
+        logger.experiment.argparse(argparser=self.argz)
+        module.cpu().add_graph(logger.experiment)
 
-        ckpt_path = Path(self.argz.model_dir) / exp_name / f'version_{exp.version}'
+        ckpt_path = Path(self.argz.model_dir) / exp_name / f'version_{logger.experiment.version}'
         checkpoint_callback = ModelCheckpoint(
             filepath=ckpt_path,
             prefix=f'weights',
             verbose=True,
-            #save_best_only=False,
-            #monitor='val_loss',
-            #mode='min',
+            # save_best_only=False,
+            # monitor='val_loss',
+            # mode='min',
         )
 
         early_stop_callback = EarlyStopping(
             monitor='val_loss',
             min_delta=0.00,
-            patience=5,
+            patience=10,
             verbose=True,
             mode='auto'
         )
 
         trainer = pl.Trainer(
-            experiment=exp,
+            logger=logger,
             max_nb_epochs=epochs,
             checkpoint_callback=checkpoint_callback,
             early_stop_callback=early_stop_callback,
             gpus=utils.int_to_flags(self.argz.gpus),
             nb_sanity_val_steps=0,
         )
-        self.trainers[exp_name, exp.version] = trainer
+        self.trainers[exp_name, logger.experiment.version] = trainer
         trainer.fit(module)
-        return exp.version
+        return logger.experiment.version
 
     def test(self, module, exp_name, version=None):
         self.trainers[exp_name, version].test(module)
@@ -132,9 +133,10 @@ class BaseTrainer:
     def default_run(self):
         for exp_name, module in self.modules.items():
             self.fit(module, exp_name)
+            notify.send(f'{exp_name} fit DONE')
             if module.has_tst_data():
-                print('TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING TESTING ')
                 self.test(module, exp_name)
+                notify.send(f'{exp_name} test DONE')
 
 
 class TrainerList:
