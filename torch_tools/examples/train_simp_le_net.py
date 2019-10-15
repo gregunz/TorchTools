@@ -4,10 +4,10 @@ from anode import utils
 from anode.datasets.clf.sup import MNIST, CIFAR10, SupervisedDataset
 from anode.models import SimpLeNet
 from anode.modules.classification_module import ClassificationModule
+from torch_tools.trainer.base_trainer import BaseTrainer
+from torch_tools.trainer.lightning_module import BaseModule
 
 from torch_tools.datasets.util import split
-from torch_tools.lightning_module import BaseModule
-from torch_tools.trainer.base_trainer import BaseTrainer
 
 
 class SimpLeNetTrainer(BaseTrainer):

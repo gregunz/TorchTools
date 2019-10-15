@@ -1,6 +1,6 @@
 from torch import nn
 
-from . import PyramidDown, PyramidUp
+from .pyramid_block import PyramidDown, PyramidUp
 
 
 class DCEncoder(nn.Module):

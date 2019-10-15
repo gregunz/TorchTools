@@ -1,9 +1,8 @@
 from functools import reduce
 
-from anode.models.util import FixedInputSizeModel
 from torch import nn
 
-from torch_tools.models.util import Flatten, UnFlatten, AEModel
+from torch_tools.models.util import Flatten, UnFlatten, AEModel, FixedInputSizeModel
 from torch_tools.models.vision.util import DCDecoder, DCEncoder
 
 

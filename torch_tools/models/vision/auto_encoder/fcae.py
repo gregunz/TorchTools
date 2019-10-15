@@ -1,5 +1,3 @@
-from functools import reduce
-
 from test_tube import HyperOptArgumentParser
 from torch import nn
 
@@ -12,12 +10,10 @@ class FCAE(nn.Module, AEModel):
     Fully Convolutional AutoEncoder
     """
 
-    def __init__(self, input_channels, latent_channels=100, n_filters=64, n_pyramid=3):
+    def __init__(self, input_channels, latent_channels=100, n_filters=64, n_pyramid=3, **kargs):
         super().__init__()
         self.latent_channels = latent_channels
         self.n_pyramid = n_pyramid
-
-        self.latent_size = reduce(lambda x, y: x * y, self.encoder_out_size)
 
         self.encoder = DCEncoder(input_channels, latent_channels=latent_channels, n_filters=n_filters,
                                  n_pyramid=n_pyramid)

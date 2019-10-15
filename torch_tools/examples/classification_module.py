@@ -4,7 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import Dataset
 
-from torch_tools.lightning_module import SimpleModule
+from torch_tools.trainer.lightning_module import SimpleModule
 
 
 class ClassificationModule(SimpleModule):
