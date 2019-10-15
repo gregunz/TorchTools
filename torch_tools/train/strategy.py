@@ -17,6 +17,7 @@ class Strategy:
     Args:
         log_dir (str): path to the logs directory
     """
+
     def __init__(self, log_dir):
         # self.name = name
         self.log_dir = log_dir
@@ -197,7 +198,7 @@ class Strategy:
         Returns:
         """
         if self._logger is None:
-            #warnings.warn('Accessing logger but it is not set. Instantiating one with default arguments')
+            # warnings.warn('Accessing logger but it is not set. Instantiating one with default arguments')
             self._logger = SummaryWriter(self.log_dir)
         return self._logger
 
@@ -221,7 +222,6 @@ class Strategy:
         except ImportError:
             for k, v in metrics_dict.items():
                 self.logger.add_scalar(tag=k, scalar_value=v, global_step=global_step)
-
 
     def _add_graph(self, model) -> None:
         try:

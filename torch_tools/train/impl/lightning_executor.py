@@ -22,11 +22,12 @@ class LightningExecutor(E.Executor):
         model_dir (str): path to model weights directory
         gpus (list): list of cuda gpus, empty list for cpu.
     """
+
     def __init__(self, exp_name, model_dir, gpus, **kwargs):
         super().__init__(exp_name, model_dir, int_to_flags(gpus))
         self._trainers = _TrainerList()
 
-    def train(self, strategy: S.Strategy, epochs, version=None, **kwargs ):
+    def train(self, strategy: S.Strategy, epochs, version=None, **kwargs):
         logger = TestTubeLogger(
             save_dir=strategy.log_dir,
             name=self.exp_name,
