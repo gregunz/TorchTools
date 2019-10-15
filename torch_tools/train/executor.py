@@ -6,19 +6,49 @@ from . import strategy as S
 
 
 class Executor:
-    def __init__(self, exp_name, log_dir, model_dir, gpus):
-        # self.argz = argz
+    """
+    Executes strategies, handle multiple gpus, checkpointing, early stopping...
+
+    Available implementations:
+     - `LightningExecutor` (pytorch-lightning backend)
+
+    Args:
+        exp_name (str): name of the experience
+        model_dir (str): path to model weights directory
+        gpus (list): list of cuda gpus, empty list for cpu.
+    """
+    def __init__(self, exp_name, model_dir, gpus):
         self.exp_name = exp_name
-        self.log_dir = log_dir
         self.model_dir = model_dir
         self.gpus = gpus
 
     @abstractmethod
-    def train(self, strategy: S.Strategy, epochs, version=None):
+    def train(self, strategy: S.Strategy, epochs: int, version=None):
+        """
+        Executes training procedure given a `Strategy` and a given number of epochs.
+
+        Args:
+            strategy:
+            epochs:
+            version:
+
+        Returns:
+
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def test(self, strategy, version=None):
+    def test(self, strategy: S.Strategy, version=None):
+        """
+        Executes testing procedure given a `Strategy`.
+
+        Args:
+            strategy:
+            version:
+
+        Returns:
+
+        """
         raise NotImplementedError
 
     @staticmethod
@@ -43,7 +73,7 @@ class Executor:
         parser.add_argument('--manual_seed', type=int, default=default_seed,
                             help=f'set the seed manually for more reproducibility (default: {default_seed})')
 
-        default_gpus = 1  # represents which gpu is used in binary representation (5 = 1010 = gpu0 and gpu2)
+        default_gpus = None  # represents which gpu is used in binary representation (5 = 1010 = gpu0 and gpu2)
         parser.add_argument('--gpus', type=int, default=default_gpus,
                             help=f'which cuda device is used in binary representation '
                                  f'(i.e. 5 = 0101 = cuda:0 and cuda:2) (default: {default_gpus})')

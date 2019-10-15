@@ -8,8 +8,18 @@ from .. import strategy as S
 
 
 class SimpleStrategy(S.Strategy, metaclass=ABCMeta):
-    def __init__(self, tng_dataset, net, lr, betas, tng_batch_size, val_batch_size, val_dataset=None, tst_dataset=None):
-        super().__init__()
+    """
+    A simple (abstract) strategy.
+
+    It needs one model and (at least) one dataset.
+
+    It provides one adam optimizer for model's parameters, shuffled dataloaders.
+    """
+
+    def __init__(self, tng_dataset, net, lr, betas, tng_batch_size, val_batch_size, log_dir,
+                 val_dataset=None, tst_dataset=None,
+                 **kwargs):
+        super().__init__(log_dir)
         self.tng_dataset = tng_dataset
         self.val_dataset = val_dataset
         self.tst_dataset = tst_dataset
@@ -44,7 +54,7 @@ class SimpleStrategy(S.Strategy, metaclass=ABCMeta):
         parser.add_argument('--val_batch_size', type=int, default=default_val_batch_size,
                             help=f'validation batch size (default: {default_val_batch_size})')
 
-    def optimizers(self):
+    def optim_schedulers(self):
         optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, betas=self.betas)
         return optimizer
 
@@ -59,4 +69,5 @@ class SimpleStrategy(S.Strategy, metaclass=ABCMeta):
     def tst_data_loader(self):
         if self.tst_dataset is None:
             return None
-        return DataLoader(self.tst_dataset, batch_size=self.val_batch_size, shuffle=False, num_workers=self.num_workers)
+        return DataLoader(self.tst_dataset, batch_size=self.val_batch_size, shuffle=False,
+                          num_workers=self.num_workers)

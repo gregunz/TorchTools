@@ -10,25 +10,52 @@ from .util import AggFn
 
 
 class Strategy:
-    def __init__(self, logger: SummaryWriter = None):
+    """
+    A training Strategy describes the meaningful parts of a typical training loop.
+    It also provides an optional logger.
+
+    Args:
+        log_dir (str): path to the logs directory
+    """
+    def __init__(self, log_dir):
         # self.name = name
-        self._logger = logger
+        self.log_dir = log_dir
+        self._logger = None
 
     @abstractmethod
     def tng_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
+        """
+        Create the `DataLoader` for the training steps
+
+        Returns (DataLoader):
+
+        """
         raise NotImplementedError
 
     #  @abstractmethod
     def val_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
+        """
+        [Optional] Create the `DataLoader` for the validation steps
+
+        Returns (DataLoader):
+
+        """
         pass  # raise NotImplementedError
 
     # @abstractmethod
     def tst_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
+        """
+        [Optional] Create the `DataLoader` for the testing steps
+
+        Returns (DataLoader):
+
+        """
         pass  # raise NotImplementedError
 
     @abstractmethod
-    def optimizers(self):
+    def optim_schedulers(self):
         """
+        Create the optimizers and schedulers
 
         Returns: [optimizer, ...], [scheduler, ...]
         """
@@ -37,6 +64,7 @@ class Strategy:
     @abstractmethod
     def tng_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
         """
+        Describe the training step. It should return a dict with at least the loss.
 
         Args:
             batch: data from a batch of the dataloader
@@ -54,6 +82,9 @@ class Strategy:
     # @abstractmethod
     def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
         """
+        Describe the validation step. It should return a dict with at least the loss.
+        The dicts will be aggregated over steps and provided as list to `val_agg_outputs`.
+        Logging here might cause performance issue if a step is quickly processed.
 
         Args:
             batch:
@@ -61,7 +92,7 @@ class Strategy:
             optimizer_idx:
             epoch_idx:
 
-        Returns (dict): {
+        Returns (dict): for example: {
             'loss': val_loss,
             'acc': val_acc,
             'gt': y,
@@ -73,8 +104,8 @@ class Strategy:
     # @abstractmethod
     def val_agg_outputs(self, outputs: List[dict], agg_fn: AggFn, epoch_idx: int) -> None:
         """
-        This is where you have the opportunity to aggregate the outputs
-        in order to log any metrics you wish
+        This is where you have the opportunity to aggregate the outputs of the validation steps
+        and log any metrics you wish.
 
         Args:
             outputs:
@@ -89,6 +120,8 @@ class Strategy:
     # @abstractmethod
     def tst_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
         """
+        Describe the testing step. It should return a dict with at least the loss.
+        The dicts will be aggregated over steps and provided as list to `tst_agg_outputs`.
 
         Args:
             batch:
@@ -107,6 +140,9 @@ class Strategy:
     # @abstractmethod
     def tst_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> None:
         """
+        This is where you have the opportunity to aggregate the outputs of the testing steps
+        and log any metrics you wish.
+
 
         Args:
             outputs:
@@ -116,6 +152,14 @@ class Strategy:
 
         """
         pass  # raise NotImplementedError
+
+    def add_graph(self) -> None:
+        """
+        [Optional] Log model(s) graph to tensorboard
+
+        One can use `_add_graph` helper method
+        """
+        pass
 
     def has_val(self) -> bool:
         """
@@ -142,30 +186,46 @@ class Strategy:
             return False
 
     @staticmethod
-    def add_argz(parser: ArgumentParser):
+    def add_argz(parser: ArgumentParser) -> None:
         pass
 
     @property
     def logger(self) -> SummaryWriter:
+        """
+        Provides a logger
+
+        Returns:
+        """
         if self._logger is None:
-            warnings.warn('Accessing logger but it is not set. Instantiating one with default arguments')
-            self._logger = SummaryWriter()
+            #warnings.warn('Accessing logger but it is not set. Instantiating one with default arguments')
+            self._logger = SummaryWriter(self.log_dir)
         return self._logger
 
     @logger.setter
     def logger(self, logger):
         self._logger = logger
 
-    def log(self, metrics_dict: dict, global_step: int):
-        for k, v in metrics_dict.items():
-            self.logger.add_scalar(tag=k, scalar_value=v, global_step=global_step)
+    def log(self, metrics_dict: dict, global_step: int) -> None:
+        """
+        Logs a dictionary of scalars
 
-    def add_graph(self):
-        pass
+        Args:
+            metrics_dict:
+            global_step:
 
-    def _add_graph(self, model):
+        """
+        try:
+            from test_tube import Experiment
+            if isinstance(self.logger, Experiment):
+                self.logger.log(metrics_dict)
+        except ImportError:
+            for k, v in metrics_dict.items():
+                self.logger.add_scalar(tag=k, scalar_value=v, global_step=global_step)
+
+
+    def _add_graph(self, model) -> None:
         try:
             x, _ = next(iter(self.tng_data_loader()))
             self.logger.add_graph(model, x)
         except Exception as e:
-            raise Exception("Failed to save model graph: {}".format(e))
+            warnings.warn("Failed to save model graph: {}".format(e))

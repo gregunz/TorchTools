@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 from functools import reduce
 
+from torch import nn
 
-class AEModel(ABC):
+
+class AEModel(nn.Module):
     @abstractmethod
     def encode(self, *args):
         raise NotImplementedError

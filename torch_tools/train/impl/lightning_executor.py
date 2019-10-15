@@ -12,13 +12,23 @@ from ..util import AggFn, int_to_flags
 
 
 class LightningExecutor(E.Executor):
-    def __init__(self, exp_name, log_dir, model_dir, gpus, **kwargs):
-        super().__init__(exp_name, log_dir, model_dir, gpus)
+    """
+    An Executor using pytorch-lightning library for executing strategies.
+
+    It handle multiple gpus, checkpointing, early stopping,..
+
+    Args:
+        exp_name (str): name of the experience
+        model_dir (str): path to model weights directory
+        gpus (list): list of cuda gpus, empty list for cpu.
+    """
+    def __init__(self, exp_name, model_dir, gpus, **kwargs):
+        super().__init__(exp_name, model_dir, int_to_flags(gpus))
         self._trainers = _TrainerList()
 
-    def train(self, strategy: S.Strategy, epochs, version=None):
+    def train(self, strategy: S.Strategy, epochs, version=None, **kwargs ):
         logger = TestTubeLogger(
-            save_dir=self.log_dir,
+            save_dir=strategy.log_dir,
             name=self.exp_name,
             version=version,
         )
@@ -54,7 +64,7 @@ class LightningExecutor(E.Executor):
             max_nb_epochs=epochs,
             checkpoint_callback=checkpoint_callback,
             early_stop_callback=early_stop_callback,
-            gpus=int_to_flags(self.gpus),
+            gpus=None if len(self.gpus) == 0 else self.gpus,
             nb_sanity_val_steps=0,
         )
         self._trainers[logger.experiment.version] = trainer
@@ -84,7 +94,7 @@ class _LightningModule(pl.LightningModule):
         raise NotImplementedError('No need of this? Right?')
 
     def configure_optimizers(self):
-        return self.strat.optimizers()
+        return self.strat.optim_schedulers()
 
     @pl.data_loader
     def train_dataloader(self):
@@ -111,7 +121,6 @@ class _LightningModule(pl.LightningModule):
         return self.strat.val_step(*args, epoch_idx=self.current_epoch)
 
     def validation_end(self, outputs):
-        print(outputs)
         self.strat.val_agg_outputs(outputs, AggFn(outputs), self.current_epoch)
         return {}
 

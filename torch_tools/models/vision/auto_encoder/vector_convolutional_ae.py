@@ -2,11 +2,11 @@ from functools import reduce
 
 from torch import nn
 
-from torch_tools.models.util import Flatten, UnFlatten, AEModel, FixedInputSizeModel
-from torch_tools.models.vision.util import DCDecoder, DCEncoder
+from torch_tools.models.util import Flatten, UnFlatten, FixedInputSizeModel
+from torch_tools.models.vision.util import DCDecoder, DCEncoder, AEModel
 
 
-class VectorCAE(nn.Module, AEModel, FixedInputSizeModel):
+class VectorCAE(AEModel, FixedInputSizeModel):
     """
     Convolutional AutoEncoder with Fully Connected layer in between to create a latent vector.
 

@@ -9,7 +9,7 @@ setup(name='DL Toolbox in PyTorch',
       author_email='mail@gregunz.io',
       url='github.com/gregunz',
       packages=find_packages(),
-      requires=[
+      install_requires=[
           'torch==1.2',
           'torchvision==0.4.0',
           # 'pytorch-lightning==0.5.1',
