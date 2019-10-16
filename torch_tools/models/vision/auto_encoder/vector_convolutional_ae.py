@@ -13,7 +13,7 @@ class VectorCAE(AEModel, FISModel):
     Note that latent dim is the exact number of dimension of the latent vector.
     """
 
-    def __init__(self, input_size, latent_dim=100, n_filters=64, n_pyramid=None):
+    def __init__(self, input_size, latent_dim=100, n_filters=64, n_pyramid=None, **kwargs):
         super().__init__(input_size)
         self.latent_channels = latent_dim
         if n_pyramid is None:

@@ -9,7 +9,7 @@ class SimpLeNet(FISModel):
     A (very) simple network inspired by LeNet architecture
     """
 
-    def __init__(self, input_size, n_classes):
+    def __init__(self, input_size, n_classes, **kwargs):
         super().__init__(input_size)
 
         self.cnn = nn.Sequential(
