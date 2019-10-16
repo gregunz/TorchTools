@@ -9,7 +9,7 @@ from .. import strategy as S
 
 class SimpleStrategy(S.Strategy, metaclass=ABCMeta):
     """
-    A simple (abstract) strategy.
+    A simple (abstract) strategy, practical for simple model training.
 
     It needs one model and (at least) one dataset.
 

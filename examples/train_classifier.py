@@ -1,10 +1,9 @@
 import invertransforms as T
 from test_tube import HyperOptArgumentParser
-from torch import nn
 from torchvision.datasets import MNIST, CIFAR10
 
 from torch_tools.datasets.util import split
-from torch_tools.models.util import Flatten
+from torch_tools.models.vision import SimpLeNet
 from torch_tools.strategies import ClassifierStrategy
 from torch_tools.train import LightningExecutor
 
@@ -45,17 +44,10 @@ if __name__ == '__main__':
     # [MODEL] a pytorch model #
     ###########################
 
-    net = nn.Sequential(
-        nn.Conv2d(1, 20, 5, 1),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        nn.Conv2d(20, 50, 5, 1),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        Flatten(),
-        nn.Linear(4 * 4 * 50, 500),
-        nn.ReLU(),
-        nn.Linear(500, 10),
+    sample_input, _ = dataset[0]
+    net = SimpLeNet(
+        input_size=sample_input.size(),
+        n_classes=10,
     )
 
     ########################################

@@ -2,7 +2,7 @@ from abc import abstractmethod
 from pathlib import Path
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
 from torch import nn
 
@@ -27,15 +27,16 @@ class LightningExecutor(E.Executor):
         super().__init__(exp_name, model_dir, int_to_flags(gpus))
         self._trainers = _TrainerList()
 
-    def train(self, strategy: S.Strategy, epochs, version=None, **kwargs):
+    def train(self, strategy: S.Strategy, epochs, version=None, early_stop_callback=None, **kwargs):
         logger = TestTubeLogger(
             save_dir=strategy.log_dir,
             name=self.exp_name,
             version=version,
         )
+        version = logger.experiment.version
         # todo: do this somewhere else
         # logger.experiment.argparse(argparser=self.argz)
-        strategy.logger = logger.experiment
+        strategy.logger = logger
         strategy.add_graph()
 
         module = _LightningModule(strategy)
@@ -43,7 +44,7 @@ class LightningExecutor(E.Executor):
             if isinstance(v, nn.Module):
                 setattr(module, k, v)
 
-        ckpt_path = Path(self.model_dir) / self.exp_name / f'version_{logger.experiment.version}'
+        ckpt_path = Path(self.model_dir) / self.exp_name / f'version_{version}'
         checkpoint_callback = ModelCheckpoint(
             filepath=ckpt_path,
             prefix=f'weights',
@@ -52,23 +53,22 @@ class LightningExecutor(E.Executor):
             # monitor='val_loss',
             # mode='min',
         )
-        early_stop_callback = EarlyStopping(
-            monitor='val_loss',
-            min_delta=0.00,
-            patience=10,
-            verbose=True,
-            mode='auto'
-        )
-
+        assert len(self.gpus) <= 1, 'not handling multiple GPUs yet'
+        gpus = None if len(self.gpus) == 0 else self.gpus
+        use_amp = False  # gpus is not None
+        d_backend = None if len(self.gpus) <= 1 else 'dp'
         trainer = pl.Trainer(
             logger=logger,
             max_nb_epochs=epochs,
             checkpoint_callback=checkpoint_callback,
             early_stop_callback=early_stop_callback,
-            gpus=None if len(self.gpus) == 0 else self.gpus,
+            gpus=gpus,
+            use_amp=use_amp,
+            amp_level='O1',
             nb_sanity_val_steps=0,
+            distributed_backend=d_backend,
         )
-        self._trainers[logger.experiment.version] = trainer
+        self._trainers[version] = trainer
         trainer.fit(module)
 
     def test(self, strategy, version=None):
@@ -115,23 +115,38 @@ class _LightningModule(pl.LightningModule):
 
     def training_step(self, *args):
         args = _args_step(args)
-        return self.strat.tng_step(*args, epoch_idx=self.current_epoch)
+        outputs = self.strat.tng_step(*args, epoch_idx=self.current_epoch)
+        assert 'loss' in outputs, 'training step should return a dict containing the loss'
+        progress_bar_logs = {k: v for k, v in outputs.items() if k != 'loss'}
+        return {
+            'loss': outputs['loss'],
+            'progress_bar': progress_bar_logs,
+            'log': {
+                # 'training/loss': outputs['loss']
+            },
+        }
 
     def validation_step(self, *args):
         args = _args_step(args)
         return self.strat.val_step(*args, epoch_idx=self.current_epoch)
 
     def validation_end(self, outputs):
-        self.strat.val_agg_outputs(outputs, AggFn(outputs), self.current_epoch)
-        return {}
+        outputs = self.strat.val_agg_outputs(outputs, AggFn(outputs), self.current_epoch)
+        return {
+            'progress_bar': outputs,
+            'log': {},
+        }
 
     def test_step(self, *args):
         args = _args_step(args)
-        return self.tst_step(*args)
+        return self.strat.tst_step(*args)
 
     def test_end(self, outputs):
-        self.tst_agg_outputs(outputs, AggFn(outputs))
-        return {}
+        outputs = self.strat.tst_agg_outputs(outputs, AggFn(outputs))
+        return {
+            'progress_bar': outputs,
+            'log': {},
+        }
 
 
 class _TrainerList:

@@ -1,9 +1,17 @@
 from typing import Union, Tuple
 
+from torch import nn
+
 InputSize = Union[Tuple[int, int], Tuple[int, int, int]]
 
 
-class FixedInputSizeModel:
+class FISModel(nn.Module):
+    """
+    Fixed Input Size Model
+
+    Class of models which only works with fixed input size.
+    """
+
     def __init__(self, input_size: InputSize):
         super().__init__()
         if len(input_size) == 2:

@@ -103,7 +103,7 @@ class Strategy:
         pass  # raise NotImplementedError
 
     # @abstractmethod
-    def val_agg_outputs(self, outputs: List[dict], agg_fn: AggFn, epoch_idx: int) -> None:
+    def val_agg_outputs(self, outputs: List[dict], agg_fn: AggFn, epoch_idx: int) -> dict:
         """
         This is where you have the opportunity to aggregate the outputs of the validation steps
         and log any metrics you wish.
@@ -139,7 +139,7 @@ class Strategy:
         pass  # raise NotImplementedError
 
     # @abstractmethod
-    def tst_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> None:
+    def tst_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> dict:
         """
         This is where you have the opportunity to aggregate the outputs of the testing steps
         and log any metrics you wish.
@@ -200,6 +200,13 @@ class Strategy:
         if self._logger is None:
             # warnings.warn('Accessing logger but it is not set. Instantiating one with default arguments')
             self._logger = SummaryWriter(self.log_dir)
+        else:
+            try:
+                from pytorch_lightning.logging import TestTubeLogger
+                if isinstance(self._logger, TestTubeLogger):
+                    return self._logger.experiment
+            except ImportError as e:
+                pass
         return self._logger
 
     @logger.setter
@@ -216,12 +223,14 @@ class Strategy:
 
         """
         try:
-            from test_tube import Experiment
-            if isinstance(self.logger, Experiment):
-                self.logger.log(metrics_dict)
+            from pytorch_lightning.logging import TestTubeLogger
+            if isinstance(self._logger, TestTubeLogger):
+                self._logger.log_metrics(metrics_dict, step_num=global_step)
+                return
         except ImportError:
-            for k, v in metrics_dict.items():
-                self.logger.add_scalar(tag=k, scalar_value=v, global_step=global_step)
+            pass
+        for k, v in metrics_dict.items():
+            self.logger.add_scalar(tag=k, scalar_value=v, global_step=global_step)
 
     def _add_graph(self, model) -> None:
         try:
