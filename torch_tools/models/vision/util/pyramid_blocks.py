@@ -23,7 +23,9 @@ class PyramidDown(_PyramidBlock):
     """
     This convolutional block reduces the input size (H, W) by a factor 2.
 
-    Conv2d -> BatchNorm -> LReLU
+    Conv2d -> BatchNorm -> LeakyReLU
+
+    Inspired from by DCGAN discriminator implementation <https://arxiv.org/abs/1511.06434>
     """
 
     def __init__(self, in_channels, out_channels=None):
@@ -36,7 +38,9 @@ class PyramidUp(_PyramidBlock):
     """
     This convolutional block augments the input size (H, W) by a factor 2.
 
-    ConvTranspose2d -> BatchNorm -> LReLU
+    ConvTranspose2d -> BatchNorm -> ReLU
+
+    Inspired from by DCGAN generator implementation <https://arxiv.org/abs/1511.06434>
     """
 
     def __init__(self, in_channels, out_channels=None):
