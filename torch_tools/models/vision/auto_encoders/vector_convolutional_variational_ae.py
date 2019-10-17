@@ -9,9 +9,7 @@ from . import VectorCAE
 
 class VectorCVAE(VectorCAE):
     """
-    Convolutional Variational AutoEncoder with Fully Connected layer in between to create a latent vector.
-
-    Note that latent dim is the exact number of dimension of the latent vector.
+    Variational variant of `VectorCAE`, refer to `VectorCAE`'s doc for more details.
     """
 
     def __init__(self, input_size, latent_dim=100, n_filters=64, n_pyramid=None, **kwargs):

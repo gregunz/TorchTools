@@ -10,7 +10,24 @@ class VectorCAE(AEModel, FISModel):
     """
     Convolutional AutoEncoder with Fully Connected layer in between to create a latent vector.
 
-    Note that latent dim is the exact number of dimension of the latent vector.
+    Note that latent dim is the exact number of dimension of the latent vector (hence -> vector in the name).
+    Because of that, it requires to know the input size in order to construct a fully connected layer with
+    the right input size.
+
+    `n_filters` controls the capacity of the model, it is the number of filters (kernels) used in the
+    first `_PyramidBlock`, then it grows exponentially with the number of `_PyramidBlock` blocks.
+
+    By default, the number of `_PyramidBlock` is automatically computed to have the maximum of them
+    (until the image size (width or height) cannot be divided by 2 anymore).
+    This way there is only the need to provide the input size for small image dataset such as MNIST or
+    CIFAR10 for which the maximum number of `_PyramidBlock` is already limited.
+
+        Args:
+            input_size (tuple): input data size
+            latent_dim (int): number of dimension of the latent vector
+            n_filters (int, optional): number of filter of the first `_PyramidBlock`
+            n_pyramid (int): number of `_PyramidBlock`
+            **kwargs: not used (practical when feeding **vars(args) in constructor)
     """
 
     def __init__(self, input_size, latent_dim=100, n_filters=64, n_pyramid=None, **kwargs):
