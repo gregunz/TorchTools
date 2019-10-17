@@ -4,7 +4,7 @@ from functools import reduce
 from torch import nn
 
 
-class AEModel(nn.Module):
+class AE(nn.Module):
     @abstractmethod
     def encode(self, *args):
         raise NotImplementedError

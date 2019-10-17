@@ -1,7 +1,7 @@
 from abc import ABCMeta
+from argparse import ArgumentParser
 
-import torch
-from test_tube import HyperOptArgumentParser
+from torch import optim
 from torch.utils.data import DataLoader
 
 from .. import strategy as S
@@ -32,30 +32,23 @@ class SimpleStrategy(S.Strategy, metaclass=ABCMeta):
         self.num_workers = 8
 
     @staticmethod
-    def add_argz(parser: HyperOptArgumentParser):
-        # opt
-        default_lr, default_lr_opt = 0.0001, (0.0001, 0.0005, 0.001)
-        parser.opt_list('--lr', type=float, default=default_lr, options=default_lr_opt, tunable=True,
-                        help=f'learning rate (default: {default_lr})')
-
-        default_tng_batch_size, default_tng_batch_size_opt = 64, (64, 128, 256, 512)
-        parser.opt_list('--tng_batch_size', type=int, default=default_tng_batch_size,
-                        options=default_tng_batch_size_opt, tunable=False,
-                        help=f'training batch size (default: {default_tng_batch_size})')
-
-        # args
+    def add_argz(parser: ArgumentParser):
+        default_lr = 0.0001
+        parser.add_argument('--lr', type=float, default=default_lr, help=f'learning rate (default: {default_lr})')
         # todo: fix nargs (HyperOptArgumentParser apparently does not handle list,
         #  hence we use tuple here but this only works with default arguments and not with user input)
         default_betas = (0.9, 0.999)
         parser.add_argument('--betas', type=float, nargs='+', default=default_betas,
                             help=f'betas of adam optimizer (default: {default_betas})')
-
+        default_tng_batch_size = 64
+        parser.add_argument('--tng_batch_size', type=int, default=default_tng_batch_size,
+                            help=f'training batch size (default: {default_tng_batch_size})')
         default_val_batch_size = 64
         parser.add_argument('--val_batch_size', type=int, default=default_val_batch_size,
                             help=f'validation batch size (default: {default_val_batch_size})')
 
     def optim_schedulers(self):
-        optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr, betas=self.betas)
+        optimizer = optim.Adam(self.net.parameters(), lr=self.lr, betas=self.betas)
         return optimizer
 
     def tng_data_loader(self):

@@ -2,11 +2,11 @@ from functools import reduce
 
 from torch import nn
 
-from torch_tools.models.util import Flatten, UnFlatten, FISModel
-from torch_tools.models.vision.util import DCDecoder, DCEncoder, AEModel
+from torch_tools.models.util import Flatten, UnFlatten, FISModel, AE
+from torch_tools.models.vision.util import DCDecoder, DCEncoder
 
 
-class VectorCAE(AEModel, FISModel):
+class VectorCAE(AE, FISModel):
     """
     Convolutional AutoEncoder with Fully Connected layer in between to create a latent vector.
 
@@ -15,18 +15,18 @@ class VectorCAE(AEModel, FISModel):
     the right input size.
 
     `n_filters` controls the capacity of the model, it is the number of filters (kernels) used in the
-    first `_PyramidBlock`, then it grows exponentially with the number of `_PyramidBlock` blocks.
+    first `PyramidBlock`, then it grows exponentially with the number of `PyramidBlock` blocks.
 
-    By default, the number of `_PyramidBlock` is automatically computed to have the maximum of them
+    By default, the number of `PyramidBlock` is automatically computed to have the maximum of them
     (until the image size (width or height) cannot be divided by 2 anymore).
     This way there is only the need to provide the input size for small image dataset such as MNIST or
-    CIFAR10 for which the maximum number of `_PyramidBlock` is already limited.
+    CIFAR10 for which the maximum number of `PyramidBlock` is already limited.
 
         Args:
             input_size (tuple): input data size
             latent_dim (int): number of dimension of the latent vector
-            n_filters (int, optional): number of filter of the first `_PyramidBlock`
-            n_pyramid (int): number of `_PyramidBlock`
+            n_filters (int, optional): number of filter of the first `PyramidBlock`
+            n_pyramid (int): number of `PyramidBlock`
             **kwargs: not used (practical when feeding **vars(args) in constructor)
     """
 

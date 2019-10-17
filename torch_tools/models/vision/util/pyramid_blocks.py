@@ -1,7 +1,7 @@
 from torch import nn
 
 
-class _PyramidBlock(nn.Module):
+class PyramidBlock(nn.Module):
     def __init__(self, conv_builder, in_channels: int, out_channels: int, activation: nn.Module = nn.ReLU(True)):
         super().__init__()
         self.seq = nn.Sequential(*[
@@ -19,7 +19,7 @@ class _PyramidBlock(nn.Module):
         return f'{self.__class__.__name__.lower()}-{self.in_channels}->{self.out_channels}'
 
 
-class PyramidDown(_PyramidBlock):
+class PyramidDown(PyramidBlock):
     """
     This convolutional block reduces the input size (H, W) by a factor 2.
 
@@ -34,7 +34,7 @@ class PyramidDown(_PyramidBlock):
         super().__init__(nn.Conv2d, in_channels, out_channels, nn.LeakyReLU(negative_slope=0.2, inplace=True))
 
 
-class PyramidUp(_PyramidBlock):
+class PyramidUp(PyramidBlock):
     """
     This convolutional block augments the input size (H, W) by a factor 2.
 

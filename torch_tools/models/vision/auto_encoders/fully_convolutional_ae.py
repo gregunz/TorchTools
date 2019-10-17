@@ -1,9 +1,10 @@
 from test_tube import HyperOptArgumentParser
 
-from torch_tools.models.vision.util import DCEncoder, DCDecoder, AEModel
+from torch_tools.models.util import AE
+from torch_tools.models.vision.util import DCEncoder, DCDecoder
 
 
-class FCAE(AEModel):
+class FCAE(AE):
     """
     Fully Convolutional AutoEncoder
     """
