@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from pathlib import Path
 
 import pytorch_lightning as pl
@@ -39,7 +38,7 @@ class LightningExecutor(Executor):
         strategy.logger = logger
         strategy.add_graph()
 
-        module = _LightningModule(strategy)
+        module = load_module(strategy)
         for k, v in strategy.__dict__.items():
             if isinstance(v, nn.Module):
                 setattr(module, k, v)
@@ -72,7 +71,7 @@ class LightningExecutor(Executor):
         trainer.fit(module)
 
     def test(self, strategy, version=None):
-        module = _LightningModule(strategy)
+        module = load_module(strategy)
         self._trainers[version].test(module)
 
     # @staticmethod
@@ -84,15 +83,21 @@ class LightningExecutor(Executor):
     #                    help=f'number of batches aggregated before logging the loss (default: {default_log_interval})')
 
 
+def load_module(strategy: Strategy) -> pl.LightningModule:
+    module = _LightningModule(strategy)
+    if strategy.val_data_loader() is None:
+        delattr(module.__class__, 'validation_step')
+        delattr(module.__class__, 'validation_end')
+    if strategy.tst_data_loader() is None:
+        delattr(module.__class__, 'test_step')
+        delattr(module.__class__, 'test_end')
+    return module
+
+
 class _LightningModule(pl.LightningModule):
     def __init__(self, strategy: Strategy):
         super().__init__()
         self.strat = strategy
-
-    @abstractmethod
-    def forward(self, x):
-        # return self.net(x)
-        raise NotImplementedError('No need of this? Right?')
 
     def configure_optimizers(self):
         return self.strat.optim_schedulers()
@@ -103,15 +108,11 @@ class _LightningModule(pl.LightningModule):
 
     @pl.data_loader
     def val_dataloader(self):
-        if self.strat.has_val():
-            return self.strat.val_data_loader()
-        return None
+        return self.strat.val_data_loader()
 
     @pl.data_loader
     def test_dataloader(self):
-        if self.strat.has_tst():
-            return self.strat.tst_data_loader()
-        return None
+        return self.strat.tst_data_loader()
 
     def training_step(self, *args):
         args = _args_step(args)

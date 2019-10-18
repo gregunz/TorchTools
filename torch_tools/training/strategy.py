@@ -1,8 +1,10 @@
 import warnings
 from abc import abstractmethod
 from argparse import ArgumentParser
-from typing import Union, List
+from typing import Union, List, Tuple
 
+from torch.optim.lr_scheduler import _LRScheduler
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
@@ -54,7 +56,7 @@ class Strategy:
         pass  # raise NotImplementedError
 
     @abstractmethod
-    def optim_schedulers(self):
+    def optim_schedulers(self) -> Union[Optimizer, List[Optimizer], Tuple[List[Optimizer], List[_LRScheduler]]]:
         """
         Create the optimizers and schedulers
 
@@ -161,30 +163,6 @@ class Strategy:
         One can use `_add_graph` helper method
         """
         pass
-
-    def has_val(self) -> bool:
-        """
-        Does this trainer contains a validation set? Yes=True, No=False
-        Returns: bool
-
-        """
-        try:
-            self.val_data_loader()
-            return True
-        except NotImplementedError:
-            return False
-
-    def has_tst(self) -> bool:
-        """
-        Does this trainer contains a test set? Yes=True, No=False
-        Returns: bool
-
-        """
-        try:
-            self.tst_data_loader()
-            return True
-        except NotImplementedError:
-            return False
 
     @staticmethod
     def add_argz(parser: ArgumentParser) -> None:
