@@ -4,10 +4,10 @@ from argparse import ArgumentParser
 from torch import optim
 from torch.utils.data import DataLoader
 
-from .. import strategy as S
+from .. import Strategy
 
 
-class SimpleStrategy(S.Strategy, metaclass=ABCMeta):
+class SimpleStrategy(Strategy, metaclass=ABCMeta):
     """
     A simple (abstract) strategy, practical for simple model training.
 

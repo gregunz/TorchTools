@@ -2,10 +2,10 @@ import invertransforms as T
 from test_tube import HyperOptArgumentParser
 from torchvision.datasets import MNIST, CIFAR10
 
+from example.classification_strategy import ClassifierStrategy
 from torch_tools.datasets.util import split
 from torch_tools.models.vision import SimpLeNet
-from torch_tools.strategies import ClassifierStrategy
-from torch_tools.train import LightningExecutor
+from torch_tools.training.executors import LightningExecutor
 
 if __name__ == '__main__':
     parser = HyperOptArgumentParser()

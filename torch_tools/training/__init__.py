@@ -16,7 +16,5 @@ Design a classification `Strategy` by defining
 ...
 
 """
-from .executor import Executor
-from .impl.lightning_executor import LightningExecutor
-from .impl.simple_strategy import SimpleStrategy
-from .strategy import Strategy
+from torch_tools.training.executor import Executor
+from torch_tools.training.strategy import Strategy

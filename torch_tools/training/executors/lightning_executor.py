@@ -6,12 +6,12 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
 from torch import nn
 
-from .. import executor as E
-from .. import strategy as S
-from ..util import AggFn, int_to_flags
+from .util import int_to_flags
+from .. import Strategy, Executor
+from ..util import AggFn
 
 
-class LightningExecutor(E.Executor):
+class LightningExecutor(Executor):
     """
     An Executor using pytorch-lightning library for executing strategies.
 
@@ -27,7 +27,7 @@ class LightningExecutor(E.Executor):
         super().__init__(exp_name, model_dir, int_to_flags(gpus))
         self._trainers = _TrainerList()
 
-    def train(self, strategy: S.Strategy, epochs, version=None, early_stop_callback=None, **kwargs):
+    def train(self, strategy: Strategy, epochs, version=None, early_stop_callback=None, **kwargs):
         logger = TestTubeLogger(
             save_dir=strategy.log_dir,
             name=self.exp_name,
@@ -85,7 +85,7 @@ class LightningExecutor(E.Executor):
 
 
 class _LightningModule(pl.LightningModule):
-    def __init__(self, strategy: S.Strategy):
+    def __init__(self, strategy: Strategy):
         super().__init__()
         self.strat = strategy
 
