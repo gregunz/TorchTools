@@ -73,8 +73,8 @@ class Executor:
         default_seed = None  # this means it will be set by the clock (random)
         parser.add_argument('--manual_seed', type=int, default=default_seed,
                             help=f'set the seed manually for more reproducibility (default: {default_seed})')
-
-        default_gpus = 1  # represents which gpu is used in binary representation (5 = 1010 = gpu0 and gpu2)
+        # represents which gpu is used in binary representation (e.g, 0 = cpu, 5 = 1010 = gpu0 and gpu2)
+        default_gpus = 1
         parser.add_argument('--gpus', type=int, default=default_gpus,
                             help=f'which cuda device is used in binary representation '
                                  f'(i.e. 5 = 0101 = cuda:0 and cuda:2) (default: {default_gpus})')

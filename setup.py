@@ -10,7 +10,7 @@ setup(name='torch_tools',
       url='github.com/gregunz',
       packages=find_packages(exclude=['examples', 'tests']),
       install_requires=[
-          'torch==1.2',
-          'torchvision==0.4.0',
-          'pytorch-lightning==0.5.1',
+          'torch>=1.2',
+          'torchvision>=0.4.0',
+          'pytorch-lightning>=0.5.1',
       ])
