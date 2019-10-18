@@ -1,7 +1,14 @@
+from argparse import ArgumentParser
+
 from torch import nn
 
 from torch_tools.models.util import GAN
 from torch_tools.models.vision.util import DCDecoder, DCEncoder
+
+_ld = 100  # default latent_dim
+_nf = 64  # default n_filters
+_np = 4  # default n_pyramid
+_wi = True  # default use_custom_weight_init
 
 
 class DCGAN(GAN):
@@ -18,7 +25,7 @@ class DCGAN(GAN):
         use_custom_weight_init: whether to use the weight initialization proposed in the paper.
     """
 
-    def __init__(self, latent_dim, img_channels, n_filters=64, n_pyramid=4, use_custom_weight_init=True):
+    def __init__(self, img_channels, latent_dim=_ld, n_filters=_nf, n_pyramid=_np, use_custom_weight_init=_wi):
         super().__init__()
 
         self._generator = DCDecoder(
@@ -61,3 +68,10 @@ class DCGAN(GAN):
         elif classname.find('BatchNorm') != -1:
             module.weight.data.normal_(1.0, 0.02)
             module.bias.data.fill_(0)
+
+    @staticmethod
+    def add_argz(parser: ArgumentParser):
+        parser.add_argument('--latent_dim', type=int, default=_ld, help=f'latent dim (default: {_ld})')
+        parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks (default: {_np})')
+        parser.add_argument('--n_filters', type=int, default=_nf,
+                            help=f'num of filters for the 1st pyramid block (default: {_nf})')

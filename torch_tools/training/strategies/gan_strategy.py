@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from collections import Sequence
 
 from .. import Strategy
 
@@ -47,10 +48,10 @@ class GANStrategy(Strategy):
             return self.val_discriminator_step(batch, batch_idx, optimizer_idx - self._num_gen_opt, epoch_idx)
 
     def val_generator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_index: int) -> dict:
-        raise NotImplementedError
+        pass
 
     def val_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_index: int) -> dict:
-        raise NotImplementedError
+        pass
 
     def tst_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
         self.__check_optimizer_idx(optimizer_idx)
@@ -60,17 +61,21 @@ class GANStrategy(Strategy):
             return self.tst_discriminator_step(batch, batch_idx, optimizer_idx - self._num_gen_opt)
 
     def tst_generator_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
-        raise NotImplementedError
+        pass
 
     def tst_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
-        raise NotImplementedError
+        pass
 
     def __opt_sched_unpack(self, opt_sched):
         try:
             opt, sched = opt_sched
-            return opt, sched
-        except ValueError:
-            return opt_sched, []
+        except TypeError:
+            opt, sched = opt_sched, []
+        if not isinstance(opt, Sequence):
+            opt = [opt]
+        if not isinstance(sched, Sequence):
+            sched = [sched]
+        return opt, sched
 
     def __check_optimizer_idx(self, optimizer_idx):
         if optimizer_idx >= self._num_gen_opt + self._num_dis_opt:

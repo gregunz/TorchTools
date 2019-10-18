@@ -68,5 +68,5 @@ if __name__ == '__main__':
     ##################################
 
     exp_name = f'simp_le_net/{argz.dataset_name}'
-    exec = LightningExecutor(exp_name=exp_name, **vars(argz))
-    exec.train(strategy=classifier, **vars(argz))
+    executor = LightningExecutor(exp_name=exp_name, **vars(argz))
+    executor.train(strategy=classifier, **vars(argz))
