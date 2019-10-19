@@ -8,7 +8,7 @@ setup(name='torch_tools',
       author='Gregoire Clement',
       author_email='mail@gregunz.io',
       url='github.com/gregunz',
-      packages=find_packages(exclude=['examples', 'tests']),
+      packages=[pkg for pkg in find_packages() if pkg.startswith('torch_tools')],
       install_requires=[
           'torch>=1.2',
           'torchvision>=0.4.0',
