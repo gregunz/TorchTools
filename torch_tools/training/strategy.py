@@ -7,11 +7,12 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from werkzeug.utils import cached_property
 
-from .util import AggFn
+from .util import AggFn, Logger
 
 
-class Strategy:
+class Strategy(Logger):
     """
     A training Strategy describes the meaningful parts of a typical training loop.
     It also provides an optional logger.
@@ -141,7 +142,7 @@ class Strategy:
         pass  # raise NotImplementedError
 
     # @abstractmethod
-    def tst_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> dict:
+    def tst_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> None:
         """
         This is where you have the opportunity to aggregate the outputs of the testing steps
         and log any metrics you wish.
@@ -167,6 +168,18 @@ class Strategy:
     @staticmethod
     def add_argz(parser: ArgumentParser) -> None:
         pass
+
+    @cached_property
+    def num_tng_batch(self):
+        return len(self.tng_data_loader())
+
+    @cached_property
+    def num_val_batch(self):
+        return len(self.val_data_loader())
+
+    @cached_property
+    def num_tst_batch(self):
+        return len(self.tst_data_loader())
 
     @property
     def logger(self) -> SummaryWriter:

@@ -67,12 +67,9 @@ class ClassifierStrategy(SimpleStrategy):
     def tst_step(self, batch, batch_idx, optimizer_idx) -> dict:
         return self.evaluate_step(data_batch=batch)
 
-    def tst_agg_outputs(self, outputs, agg_fn) -> dict:
+    def tst_agg_outputs(self, outputs, agg_fn):
         tst_acc = agg_fn.stack('acc').mean()
         self.logger.add_text(
             tag='test/accuracy',
             text_string=f'{tst_acc:.4f}'
         )
-        return {
-            'tst_acc': tst_acc
-        }
