@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from pathlib import Path
 
 import pytorch_lightning as pl
@@ -24,14 +25,10 @@ class LightningExecutor(Executor):
 
     def __init__(self, exp_name, model_dir, gpus, **kwargs):
         super().__init__(exp_name, model_dir, int_to_flags(gpus))
-        self._trainers = _TrainerList()
+        self._trainers = OrderedDict()
 
     def train(self, strategy: Strategy, epochs, version=None, early_stop_callback=None, **kwargs):
-        logger = TestTubeLogger(
-            save_dir=strategy.log_dir,
-            name=self.exp_name,
-            version=version,
-        )
+        logger = self._get_logger(strategy=strategy, version=version)
         version = logger.experiment.version
         # todo: do this somewhere else
         # logger.experiment.argparse(argparser=self.argz)
@@ -52,35 +49,68 @@ class LightningExecutor(Executor):
             # monitor='val_loss',
             # mode='min',
         )
+
+        trainer = self._get_trainer(
+            logger=logger,
+            epochs=epochs,
+            chkp=checkpoint_callback,
+            early_stop=early_stop_callback,
+        )
+        self._trainers[version] = trainer
+
+        try:
+            trainer.fit(module)
+        except KeyboardInterrupt:
+            print(f'\nTraining manually stopped at epoch {module.current_epoch}...')
+            print(f'Restart anytime from here using version={version}')
+
+    def test(self, strategy, epoch=None, version=None):
+        # module = load_module(strategy)
+        module = _LightningModule(strategy)
+
+        if version is None:
+            version = next(reversed(self._trainers))
+            trainer = self._trainers[version]
+        else:
+            logger = self._get_logger(strategy, version)
+            strategy.logger = logger
+            raise NotImplementedError('TODO')
+            # self._trainer = self._get_trainer(
+            #     logger=logger,
+            #     epochs=epoch,
+            #     chkp=None,
+            #     early_stop=None
+            # )
+
+        try:
+            trainer.test(module)
+        except KeyboardInterrupt:
+            print(f'\nTesting manually stopped...')
+            print(f'Restart from it anytime using version={version}')
+
+    def _get_logger(self, strategy: Strategy, version: int):
+        return TestTubeLogger(
+            save_dir=strategy.log_dir,
+            name=self.exp_name,
+            version=version,
+        )
+
+    def _get_trainer(self, logger, epochs, chkp, early_stop):
         assert len(self.gpus) <= 1, 'not handling multiple GPUs yet'
         gpus = None if len(self.gpus) == 0 else self.gpus
-        use_amp = False  # gpus is not None
+        use_amp = gpus is not None
         d_backend = None if len(self.gpus) <= 1 else 'dp'
-        trainer = pl.Trainer(
+        return pl.Trainer(
             logger=logger,
             max_nb_epochs=epochs,
-            checkpoint_callback=checkpoint_callback,
-            early_stop_callback=early_stop_callback,
+            checkpoint_callback=chkp,
+            early_stop_callback=early_stop,
             gpus=gpus,
             use_amp=use_amp,
             amp_level='O1',
             nb_sanity_val_steps=0,
             distributed_backend=d_backend,
         )
-        self._trainers[version] = trainer
-        trainer.fit(module)
-
-    def test(self, strategy, version=None):
-        module = load_module(strategy)
-        self._trainers[version].test(module)
-
-    # @staticmethod
-    # def add_argz(parser: ArgumentParser):
-    #    super().add_argz(parser)
-
-    # default_log_interval = 100
-    # parser.add_argument('--log_interval', type=int, default=default_log_interval,
-    #                    help=f'number of batches aggregated before logging the loss (default: {default_log_interval})')
 
 
 def load_module(strategy: Strategy) -> pl.LightningModule:
@@ -98,6 +128,9 @@ class _LightningModule(pl.LightningModule):
     def __init__(self, strategy: Strategy):
         super().__init__()
         self.strat = strategy
+
+    def forward(self, *args, **kwargs):
+        raise NotImplementedError('Do not need forward in a module')
 
     def configure_optimizers(self):
         return self.strat.optim_schedulers()
@@ -118,13 +151,11 @@ class _LightningModule(pl.LightningModule):
         args = _args_step(args)
         outputs = self.strat.tng_step(*args, epoch_idx=self.current_epoch)
         assert 'loss' in outputs, 'training step should return a dict containing the loss'
-        progress_bar_logs = {k: v for k, v in outputs.items() if k != 'loss'}
+        other_logs = {k: v for k, v in outputs.items() if k != 'loss'}
         return {
             'loss': outputs['loss'],
-            'progress_bar': progress_bar_logs,
-            'log': {
-                # 'training/loss': outputs['loss']
-            },
+            'progress_bar': other_logs,
+            'log': {},
         }
 
     def validation_step(self, *args):
@@ -148,27 +179,6 @@ class _LightningModule(pl.LightningModule):
             'progress_bar': outputs,
             'log': {},
         }
-
-
-class _TrainerList:
-    def __init__(self):
-        self.trainers = dict()
-
-    def __getitem__(self, version):
-        version = self._check_version(version)
-        return self.trainers[version]
-
-    def __setitem__(self, version, trainer):
-        version = self._check_version(version)
-        self.trainers[version] = trainer
-
-    def _check_version(self, version):
-        if version is None:
-            version = max(self.trainers.keys())
-        else:
-            version = int(version)
-        assert version >= 0
-        return version
 
 
 def _args_step(args):

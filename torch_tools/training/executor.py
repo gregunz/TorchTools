@@ -39,12 +39,13 @@ class Executor:
         raise NotImplementedError
 
     @abstractmethod
-    def test(self, strategy: S.Strategy, version=None):
+    def test(self, strategy: S.Strategy, epoch, version=None):
         """
         Executes testing procedure given a `Strategy`.
 
         Args:
             strategy:
+            epoch:
             version:
 
         Returns:

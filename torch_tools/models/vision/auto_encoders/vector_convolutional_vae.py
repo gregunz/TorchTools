@@ -1,6 +1,5 @@
 import copy
 
-import torch
 from torch import nn
 
 from torch_tools.models.util import Flatten
@@ -25,12 +24,6 @@ class VectorCVAE(VectorCAE):
         mu = self.fc_enc(h)
         logvar = self.fc_enc2(h)
         return mu, logvar
-
-    def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        z = mu + eps * std
-        return z
 
     def encode(self, x):
         mu, logvar = self.encode_mu_logvar(x)

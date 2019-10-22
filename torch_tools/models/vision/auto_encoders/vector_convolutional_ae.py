@@ -20,7 +20,7 @@ class VectorCAE(AE, FISModel):
     By default, the number of `PyramidBlock` is automatically computed to have the maximum of them
     (until the image size (width or height) cannot be divided by 2 anymore).
     This way there is only the need to provide the input size for small image dataset such as MNIST or
-    CIFAR10 for which the maximum number of `PyramidBlock` is already limited.
+    CIFAR10 for which the maximum number of `PyramidBlock` is quite limited.
 
         Args:
             input_size (tuple): input data size
