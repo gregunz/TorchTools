@@ -1,3 +1,3 @@
 from .auto_encoders import *
+from .classifiers import *
 from .gans import *
-from .simp_le_net import SimpLeNet

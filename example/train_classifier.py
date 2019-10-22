@@ -1,9 +1,9 @@
 import invertransforms as T
+from classification_strategy import ClassifierStrategy
 from test_tube import HyperOptArgumentParser
 from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST, CIFAR10
 
-from example.classification_strategy import ClassifierStrategy
 from torch_tools.datasets.util import split
 from torch_tools.models.vision import SimpLeNet
 from torch_tools.training.executors import LightningExecutor
@@ -74,7 +74,8 @@ if __name__ == '__main__':
     # [EXECUTOR] it handles the rest #
     ##################################
 
-    exp_name = f'simp_le_net/{argz.dataset_name}'
+    exp_name = f'{net.__class__.__name__.lower()}/{argz.dataset_name}'
     executor = LightningExecutor(exp_name=exp_name, **vars(argz))
+
     executor.train(strategy=classifier, **vars(argz))
     executor.test()

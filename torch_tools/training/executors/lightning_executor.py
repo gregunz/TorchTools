@@ -1,7 +1,9 @@
-from collections import OrderedDict
+import os
 from pathlib import Path
+from typing import Tuple
 
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
 from torch import nn
@@ -25,22 +27,77 @@ class LightningExecutor(Executor):
 
     def __init__(self, exp_name, model_dir, gpus, **kwargs):
         super().__init__(exp_name, model_dir, int_to_flags(gpus))
-        self._trainers = OrderedDict()
+        self._last_trainer: pl.Trainer = None
 
-    def train(self, strategy: Strategy, epochs, version=None, early_stop_callback=None, **kwargs):
+    def train(self, strategy: Strategy, epochs, version=None, early_stop_callback=None, **kwargs) \
+            -> Tuple[Strategy, int]:
+
+        module = load_module(strategy)
         logger = self._get_logger(strategy=strategy, version=version)
         version = logger.experiment.version
+
+        trainer = self._get_trainer(
+            logger=logger,
+            epochs=epochs,
+            early_stop=early_stop_callback,
+        )
+        self._last_trainer = trainer
+
+        try:
+            trainer.fit(module)
+        except KeyboardInterrupt:
+            print(f'\nTraining manually stopped at epoch {module.current_epoch}...')
+            print(f'Restart anytime from here using version={version}')
+        return strategy, version
+
+    def load(self, strategy, version, **kwargs):
+        ckpt_dir = f'{self.model_dir}/{self.exp_name}/version_{version}'
+        prefix = 'weights_ckpt_epoch_'
+        suffix = '.ckpt'
+        last_epoch = max([int(p[len(prefix):-len(suffix)]) for p in os.listdir(ckpt_dir) if p.startswith(prefix)])
+        module = load_module(strategy=strategy)
+        module.load_state_dict(torch.load(f'{ckpt_dir}/{prefix}{last_epoch}{suffix}')['state_dict'])
+
+    def test(self, strategy=None, version=None, **kwargs):
+        if strategy is not None or version is not None:
+            logger = self._get_logger(strategy=strategy, version=version, add_graph=False)
+            trainer = self._get_trainer(
+                logger=logger,
+                epochs=0,
+            )
+            module = load_module(strategy=strategy)
+        else:
+            if self._last_trainer is not None:
+                trainer = self._last_trainer
+                module = None
+            else:
+                raise ValueError('Need to call train or load before or to specify the version to load!')
+
+        try:
+            trainer.test(module)
+        except KeyboardInterrupt:
+            print(f'\nTesting manually stopped...')
+
+    def _get_logger(self, strategy: Strategy, version: int = None, add_graph=True):
+        logger = TestTubeLogger(
+            save_dir=strategy.log_dir,
+            name=self.exp_name,
+            version=version,
+        )
         # todo: do this somewhere else
         # logger.experiment.argparse(argparser=self.argz)
         strategy.logger = logger
-        strategy.add_graph()
+        if add_graph:
+            strategy.add_graph()
+        return logger
 
-        module = load_module(strategy)
-        for k, v in strategy.__dict__.items():
-            if isinstance(v, nn.Module):
-                setattr(module, k, v)
+    def _get_trainer(self, logger, epochs, early_stop=None):
+        assert len(self.gpus) <= 1, 'not handling multiple GPUs yet'
+        gpus = None if len(self.gpus) == 0 else self.gpus
+        use_amp = gpus is not None
+        d_backend = None if len(self.gpus) <= 1 else 'dp'
 
-        ckpt_path = Path(self.model_dir) / self.exp_name / f'version_{version}'
+        ckpt_path = Path(self.model_dir) / self.exp_name / f'version_{logger.experiment.version}'
         checkpoint_callback = ModelCheckpoint(
             filepath=ckpt_path,
             prefix=f'weights',
@@ -50,60 +107,10 @@ class LightningExecutor(Executor):
             # mode='min',
         )
 
-        trainer = self._get_trainer(
-            logger=logger,
-            epochs=epochs,
-            chkp=checkpoint_callback,
-            early_stop=early_stop_callback,
-        )
-        self._trainers[version] = trainer
-
-        try:
-            trainer.fit(module)
-        except KeyboardInterrupt:
-            print(f'\nTraining manually stopped at epoch {module.current_epoch}...')
-            print(f'Restart anytime from here using version={version}')
-
-    def test(self, strategy, epoch=None, version=None):
-        # module = load_module(strategy)
-        module = _LightningModule(strategy)
-
-        if version is None:
-            version = next(reversed(self._trainers))
-            trainer = self._trainers[version]
-        else:
-            logger = self._get_logger(strategy, version)
-            strategy.logger = logger
-            raise NotImplementedError('TODO')
-            # self._trainer = self._get_trainer(
-            #     logger=logger,
-            #     epochs=epoch,
-            #     chkp=None,
-            #     early_stop=None
-            # )
-
-        try:
-            trainer.test(module)
-        except KeyboardInterrupt:
-            print(f'\nTesting manually stopped...')
-            print(f'Restart from it anytime using version={version}')
-
-    def _get_logger(self, strategy: Strategy, version: int):
-        return TestTubeLogger(
-            save_dir=strategy.log_dir,
-            name=self.exp_name,
-            version=version,
-        )
-
-    def _get_trainer(self, logger, epochs, chkp, early_stop):
-        assert len(self.gpus) <= 1, 'not handling multiple GPUs yet'
-        gpus = None if len(self.gpus) == 0 else self.gpus
-        use_amp = gpus is not None
-        d_backend = None if len(self.gpus) <= 1 else 'dp'
         return pl.Trainer(
             logger=logger,
             max_nb_epochs=epochs,
-            checkpoint_callback=chkp,
+            checkpoint_callback=checkpoint_callback,
             early_stop_callback=early_stop,
             gpus=gpus,
             use_amp=use_amp,
@@ -121,6 +128,9 @@ def load_module(strategy: Strategy) -> pl.LightningModule:
     if strategy.tst_data_loader() is None:
         delattr(module.__class__, 'test_step')
         delattr(module.__class__, 'test_end')
+    for k, v in strategy.__dict__.items():
+        if isinstance(v, nn.Module):
+            setattr(module, k, v)
     return module
 
 

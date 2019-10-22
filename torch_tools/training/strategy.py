@@ -142,7 +142,7 @@ class Strategy(Logger):
         pass  # raise NotImplementedError
 
     # @abstractmethod
-    def tst_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> None:
+    def tst_agg_outputs(self, outputs: List[dict], agg_fn: AggFn) -> dict:
         """
         This is where you have the opportunity to aggregate the outputs of the testing steps
         and log any metrics you wish.

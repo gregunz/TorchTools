@@ -1,7 +1,7 @@
 from torch import nn
 
 from torch_tools import utils
-from ..util import Flatten, FISModel
+from torch_tools.models.util import Flatten, FISModel
 
 
 class SimpLeNet(FISModel):
