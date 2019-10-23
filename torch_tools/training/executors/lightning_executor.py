@@ -50,13 +50,14 @@ class LightningExecutor(Executor):
             print(f'Restart anytime from here using version={version}')
         return strategy, version
 
-    def load(self, strategy, version, **kwargs):
+    def load(self, strategy, version, epoch=None, **kwargs):
         ckpt_dir = f'{self.model_dir}/{self.exp_name}/version_{version}'
         prefix = 'weights_ckpt_epoch_'
         suffix = '.ckpt'
-        last_epoch = max([int(p[len(prefix):-len(suffix)]) for p in os.listdir(ckpt_dir) if p.startswith(prefix)])
+        if epoch is None:
+            epoch = max([int(p[len(prefix):-len(suffix)]) for p in os.listdir(ckpt_dir) if p.startswith(prefix)])
         module = load_module(strategy=strategy)
-        module.load_state_dict(torch.load(f'{ckpt_dir}/{prefix}{last_epoch}{suffix}')['state_dict'])
+        module.load_state_dict(torch.load(f'{ckpt_dir}/{prefix}{epoch}{suffix}')['state_dict'])
 
     def test(self, strategy=None, version=None, **kwargs):
         if strategy is not None or version is not None:
