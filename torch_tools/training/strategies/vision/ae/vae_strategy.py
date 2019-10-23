@@ -1,6 +1,7 @@
 import torch
-from anode.strategies import AEStrategy
 from torch.nn import functional as F
+
+from . import AEStrategy
 
 
 class VAEStrategy(AEStrategy):
