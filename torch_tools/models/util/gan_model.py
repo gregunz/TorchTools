@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import Any
 
 from torch import nn
 
@@ -18,3 +19,7 @@ class GAN(nn.Module):
     @abstractmethod
     def discriminator(self) -> nn.Module:
         raise NotImplementedError
+
+    # fix: https://youtrack.jetbrains.com/issue/PY-37601
+    def __call__(self, *input, **kwargs) -> Any:
+        return super().__call__(*input, **kwargs)

@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from functools import reduce
+from typing import Any
 
 import torch
 from torch import nn
@@ -36,3 +37,7 @@ class AE(nn.Module):
         eps = torch.randn_like(std)
         z = mu + eps * std
         return z
+
+    # fix: https://youtrack.jetbrains.com/issue/PY-37601
+    def __call__(self, *input, **kwargs) -> Any:
+        return super().__call__(*input, **kwargs)
