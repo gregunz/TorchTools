@@ -9,7 +9,7 @@ class FCAE(AE):
     Fully Convolutional AutoEncoder
     """
 
-    def __init__(self, input_channels, latent_channels=100, n_filters=64, n_pyramid=3, **kargs):
+    def __init__(self, input_channels, latent_channels, n_filters, n_pyramid, **kargs):
         super().__init__()
         self.latent_channels = latent_channels
         self.n_pyramid = n_pyramid

@@ -11,7 +11,7 @@ class FCVAE(FCAE):
     Fully Convolutional Variational AutoEncoder
     """
 
-    def __init__(self, input_channels, latent_channels=100, n_filters=64, n_pyramid=3, **kargs):
+    def __init__(self, input_channels, latent_channels, n_filters, n_pyramid, **kargs):
         super().__init__(
             input_channels=input_channels,
             latent_channels=latent_channels,
