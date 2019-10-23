@@ -26,6 +26,9 @@ class Logger:
         assert target_values.size(0) == 2
         assert set(target_values.tolist()) == {0, 1}
 
+        targets = targets.detach().cpu()
+        outputs = outputs.detach().cpu()
+
         fpr, tpr, threshold = metrics.roc_curve(targets, outputs)
 
         roc_figure = plt.figure(figsize=(5, 5))
@@ -50,6 +53,7 @@ class Logger:
             scalar_value=auc,
             global_step=global_step,
         )
+        return auc
 
 
 class ImageLogger(Logger, metaclass=ABCMeta):
