@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Any
 
 import pytorch_lightning as pl
 import torch
@@ -17,7 +17,7 @@ class LightningExecutor(Executor):
     """
     An Executor using pytorch-lightning library for executing strategies.
 
-    It handle multiple gpus, checkpointing, early stopping,..
+    It handles multiple gpus, checkpointing, early stopping,..
 
     Args:
         exp_name (str): name of the experience
@@ -32,7 +32,7 @@ class LightningExecutor(Executor):
     def train(self, strategy: Strategy, epochs, version=None, early_stop_callback=None, **kwargs) \
             -> Tuple[Strategy, int]:
 
-        module = load_module(strategy)
+        module = _LightningModule.load(strategy)
         logger = self._get_logger(strategy=strategy, version=version)
         version = logger.experiment.version
 
@@ -56,7 +56,7 @@ class LightningExecutor(Executor):
         suffix = '.ckpt'
         if epoch is None:
             epoch = max([int(p[len(prefix):-len(suffix)]) for p in os.listdir(ckpt_dir) if p.startswith(prefix)])
-        module = load_module(strategy=strategy)
+        module = _LightningModule.load(strategy=strategy)
         module.load_state_dict(torch.load(f'{ckpt_dir}/{prefix}{epoch}{suffix}')['state_dict'])
 
     def test(self, strategy=None, version=None, **kwargs):
@@ -66,7 +66,7 @@ class LightningExecutor(Executor):
                 logger=logger,
                 epochs=0,
             )
-            module = load_module(strategy=strategy)
+            module = _LightningModule.load(strategy=strategy)
         else:
             if self._last_trainer is not None:
                 trainer = self._last_trainer
@@ -95,7 +95,7 @@ class LightningExecutor(Executor):
     def _get_trainer(self, logger, epochs, early_stop=None):
         assert len(self.gpus) <= 1, 'not handling multiple GPUs yet'
         gpus = None if len(self.gpus) == 0 else self.gpus
-        use_amp = gpus is not None
+        use_amp = None  # gpus is not None
         d_backend = None if len(self.gpus) <= 1 else 'dp'
 
         ckpt_path = Path(self.model_dir) / self.exp_name / f'version_{logger.experiment.version}'
@@ -103,6 +103,7 @@ class LightningExecutor(Executor):
             filepath=ckpt_path,
             prefix=f'weights',
             verbose=True,
+            period=2,
             # save_best_only=False,
             # monitor='val_loss',
             # mode='min',
@@ -121,27 +122,13 @@ class LightningExecutor(Executor):
         )
 
 
-def load_module(strategy: Strategy) -> pl.LightningModule:
-    module = _LightningModule(strategy)
-    if strategy.val_data_loader() is None:
-        delattr(module.__class__, 'validation_step')
-        delattr(module.__class__, 'validation_end')
-    if strategy.tst_data_loader() is None:
-        delattr(module.__class__, 'test_step')
-        delattr(module.__class__, 'test_end')
-    for k, v in strategy.__dict__.items():
-        if isinstance(v, nn.Module):
-            setattr(module, k, v)
-    return module
-
-
 class _LightningModule(pl.LightningModule):
     def __init__(self, strategy: Strategy):
         super().__init__()
         self.strat = strategy
 
     def forward(self, *args, **kwargs):
-        raise NotImplementedError('Do not need forward in a module')
+        raise NotImplementedError('Do not need to forward in a module')
 
     def configure_optimizers(self):
         return self.strat.optim_schedulers()
@@ -190,6 +177,29 @@ class _LightningModule(pl.LightningModule):
             'progress_bar': outputs,
             'log': {},
         }
+
+    # fix: https://youtrack.jetbrains.com/issue/PY-37601
+    def __call__(self, *input, **kwargs) -> Any:
+        return super().__call__(*input, **kwargs)
+
+    @staticmethod
+    def load(strategy: Strategy) -> '_LightningModule':
+        module = _LightningModule(strategy)
+        # todo: do better here!
+        if not getattr(module.__class__, 'did_delete', False):
+            if strategy.val_data_loader() is None:
+                delattr(module.__class__, 'validation_step')
+                delattr(module.__class__, 'validation_end')
+            if strategy.tst_data_loader() is None:
+                delattr(module.__class__, 'test_step')
+                delattr(module.__class__, 'test_end')
+            setattr(module.__class__, 'did_delete', True)
+
+        for k, v in strategy.__dict__.items():
+            if isinstance(v, nn.Module):
+                setattr(module, k, v)
+
+        return module
 
 
 def _args_step(args):

@@ -62,7 +62,7 @@ class DCDecoder(nn.Module):
         if final_layer:
             layers += [
                 # check if this bias=False helps
-                nn.ConvTranspose2d(n_filters, out_channels, 4, 2, 1, bias=False),
+                nn.ConvTranspose2d(n_filters, out_channels, kernel_size=4, stride=2, padding=1, bias=False),
             ]
 
         self.model = nn.Sequential(*layers)

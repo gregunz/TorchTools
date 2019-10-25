@@ -8,7 +8,7 @@ def_credentials_path = Path(os.environ.get('torch_tools_credentials', os.environ
 
 
 def send(message, credentials_path=def_credentials_path):
-    proxy_url = os.environ.get('https_proxy', None)
+    proxy_url = os.environ.get('all_proxy', None)
     request_proxy = None
     if proxy_url is not None:
         request_proxy = telegram.utils.request.Request(proxy_url=proxy_url)

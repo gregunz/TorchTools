@@ -7,14 +7,14 @@ from .. import Strategy
 class GANStrategy(Strategy):
     def __init__(self, log_dir):
         super().__init__(log_dir)
-        self._num_dis_opt = None
         self._num_gen_opt = None
+        self._num_dis_opt = None
 
     def optim_schedulers(self):
         gen_opts, gen_scheds = self.__opt_sched_unpack(self.generator_optim_schedulers())
         dis_opts, dis_scheds = self.__opt_sched_unpack(self.discriminator_optim_schedulers())
-        self._num_dis_opt = len(dis_opts)
         self._num_gen_opt = len(gen_opts)
+        self._num_dis_opt = len(dis_opts)
         return gen_opts + dis_opts, gen_scheds + dis_scheds
 
     @abstractmethod

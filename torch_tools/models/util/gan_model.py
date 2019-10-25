@@ -7,11 +7,6 @@ from torch import nn
 class GAN(nn.Module):
     @property
     @abstractmethod
-    def input_size(self):
-        return self._input_size
-
-    @property
-    @abstractmethod
     def generator(self) -> nn.Module:
         raise NotImplementedError
 

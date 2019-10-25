@@ -2,16 +2,16 @@ from argparse import ArgumentParser
 
 from torch import nn
 
-from torch_tools.models.util import GAN
+from torch_tools.models.util import GAN, FISModel
 from torch_tools.models.vision.util import DCDecoder, DCEncoder
 
-_ld = 100  # default latent_dim
+_ld = 128  # default latent_dim
 _nf = 64  # default n_filters
 _np = 4  # default n_pyramid
 _wi = True  # default use_custom_weight_init
 
 
-class DCGAN(GAN):
+class DCGAN(GAN, FISModel):
     """
     DCGAN Implementation <https://arxiv.org/abs/1511.06434>
 
@@ -25,8 +25,9 @@ class DCGAN(GAN):
         use_custom_weight_init: whether to use the weight initialization proposed in the paper.
     """
 
-    def __init__(self, img_channels, latent_dim=_ld, n_filters=_nf, n_pyramid=_np, use_custom_weight_init=_wi):
-        super().__init__()
+    def __init__(self, img_channels, latent_dim=_ld, n_filters=_nf, n_pyramid=_np, use_custom_weight_init=_wi,
+                 **kwargs):
+        super().__init__(input_size=(latent_dim, 1, 1))
 
         self._generator = DCDecoder(
             out_channels=img_channels,
@@ -44,6 +45,9 @@ class DCGAN(GAN):
 
         self.latent_dim = latent_dim
 
+        h = 2 ** (n_pyramid + 2)
+        self.image_size = (img_channels, h, h)
+
         if use_custom_weight_init:
             self.apply(self.weights_init)
 
@@ -54,10 +58,6 @@ class DCGAN(GAN):
     @property
     def discriminator(self) -> nn.Module:
         return self._discriminator
-
-    @property
-    def input_size(self):
-        return self.latent_dim, 1, 1
 
     # custom weights initialization
     @staticmethod
@@ -75,3 +75,5 @@ class DCGAN(GAN):
         parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks (default: {_np})')
         parser.add_argument('--n_filters', type=int, default=_nf,
                             help=f'num of filters for the 1st pyramid block (default: {_nf})')
+        parser.add_argument('--no_custom_weight_init', action='store_false', default=not _nf,
+                            help=f'use this flag for not using the weight initialization proposed in the paper')

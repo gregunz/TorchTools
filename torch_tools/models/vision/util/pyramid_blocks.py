@@ -2,13 +2,18 @@ from torch import nn
 
 
 class PyramidBlock(nn.Module):
-    def __init__(self, conv_builder, in_channels: int, out_channels: int, activation: nn.Module = nn.ReLU(True)):
+    def __init__(self, conv_builder, in_channels: int, out_channels: int, use_batch_norm: bool = True,
+                 activation: nn.Module = nn.ReLU(True)):
         super().__init__()
-        self.seq = nn.Sequential(*[
-            conv_builder(in_channels, out_channels, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(out_channels),
-            activation,
-        ])
+
+        block_parts = [conv_builder(in_channels, out_channels, 4, 2, 1, bias=not use_batch_norm)]
+
+        if use_batch_norm:
+            block_parts += [nn.BatchNorm2d(out_channels)]
+        if activation is not None:
+            block_parts += [activation]
+
+        self.seq = nn.Sequential(*block_parts)
         self.in_channels = in_channels
         self.out_channels = out_channels
 
@@ -16,7 +21,7 @@ class PyramidBlock(nn.Module):
         return self.seq(x)
 
     def __repr__(self):
-        return f'{self.__class__.__name__.lower()}-{self.in_channels}->{self.out_channels}'
+        return f'{self.__class__.__name__.lower()}-{self.in_channels}-to-{self.out_channels}'
 
 
 class PyramidDown(PyramidBlock):
@@ -28,10 +33,17 @@ class PyramidDown(PyramidBlock):
     Inspired from by DCGAN discriminator implementation <https://arxiv.org/abs/1511.06434>
     """
 
-    def __init__(self, in_channels, out_channels=None):
+    def __init__(self, in_channels, out_channels=None, use_batch_norm=True,
+                 activation=nn.LeakyReLU(negative_slope=0.2, inplace=True)):
         if out_channels is None:
             out_channels = in_channels * 2
-        super().__init__(nn.Conv2d, in_channels, out_channels, nn.LeakyReLU(negative_slope=0.2, inplace=True))
+        super().__init__(
+            conv_builder=nn.Conv2d,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            use_batch_norm=use_batch_norm,
+            activation=activation,
+        )
 
 
 class PyramidUp(PyramidBlock):
@@ -43,7 +55,13 @@ class PyramidUp(PyramidBlock):
     Inspired from by DCGAN generator implementation <https://arxiv.org/abs/1511.06434>
     """
 
-    def __init__(self, in_channels, out_channels=None):
+    def __init__(self, in_channels, out_channels=None, use_batch_norm=True, activation=nn.ReLU(inplace=True)):
         if out_channels is None:
             out_channels = in_channels // 2
-        super().__init__(nn.ConvTranspose2d, in_channels, out_channels)  # using default activations: ReLU
+        super().__init__(
+            conv_builder=nn.ConvTranspose2d,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            use_batch_norm=use_batch_norm,
+            activation=activation,
+        )

@@ -17,6 +17,7 @@ class FISModel(nn.Module):
         if len(input_size) == 2:
             input_size = (1,) + input_size
         self.input_channels, self.input_height, self.input_width = input_size
+        self.input_size = input_size
 
     # fix: https://youtrack.jetbrains.com/issue/PY-37601
     def __call__(self, *input, **kwargs) -> Any:
