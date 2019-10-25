@@ -2,11 +2,12 @@ from torch.utils.data import Dataset
 
 
 class Superset(Dataset):
-    def __init__(self, dataset, num_times):
+    def __init__(self, dataset: Dataset, num_samples: int):
+        assert num_samples > 0, 'need at least one sample in the dataset'
+
         self.dataset = dataset
-        assert num_times > 0, 'cannot upsample 0 or less times'
-        n = len(self.dataset)
-        self.indices = [i % n for i in range(num_times * n)]
+        n = len(dataset)
+        self.indices = [i % n for i in range(num_samples)]
 
     def __getitem__(self, idx):
         return self.dataset[self.indices[idx]]

@@ -14,7 +14,7 @@ class LazyTransformedDataset(Dataset):
         self.transforms = transforms
 
     def __getitem__(self, index):
-        return self.transforms(*self.dataset[index])
+        return self.transforms(self.dataset[index])
 
     def __len__(self):
         return len(self.dataset)
