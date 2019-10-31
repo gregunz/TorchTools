@@ -9,14 +9,14 @@ class FCAE(AE):
     Fully Convolutional AutoEncoder
     """
 
-    def __init__(self, input_channels, latent_channels, n_filters, n_pyramid, **kargs):
+    def __init__(self, in_channels, latent_channels, n_filters, n_pyramid, **kargs):
         super().__init__()
         self.latent_channels = latent_channels
         self.n_pyramid = n_pyramid
 
-        self.encoder = DCEncoder(input_channels, latent_channels=latent_channels, n_filters=n_filters,
+        self.encoder = DCEncoder(in_channels, latent_channels=latent_channels, n_filters=n_filters,
                                  n_pyramid=n_pyramid)
-        self.decoder = DCDecoder(input_channels, latent_channels=latent_channels, n_filters=n_filters,
+        self.decoder = DCDecoder(in_channels, latent_channels=latent_channels, n_filters=n_filters,
                                  n_pyramid=n_pyramid)
 
     def encode(self, x):

@@ -11,16 +11,16 @@ class FCVAE(FCAE):
     Fully Convolutional Variational AutoEncoder
     """
 
-    def __init__(self, input_channels, latent_channels, n_filters, n_pyramid, **kargs):
+    def __init__(self, in_channels, latent_channels, n_filters, n_pyramid, **kargs):
         super().__init__(
-            input_channels=input_channels,
+            in_channels=in_channels,
             latent_channels=latent_channels,
             n_filters=n_filters,
             n_pyramid=n_pyramid,
         )
 
         # overriding encoder part (duplicate its final layer for mu and var)
-        self.encoder = DCEncoder(input_channels, latent_channels=latent_channels, n_filters=n_filters,
+        self.encoder = DCEncoder(in_channels, latent_channels=latent_channels, n_filters=n_filters,
                                  n_pyramid=n_pyramid, final_layer=False)  # without final layer
         self.encoder_out_mu = nn.Conv2d(n_filters * 2 ** n_pyramid, latent_channels, kernel_size=4, stride=1, padding=0,
                                         bias=False)
