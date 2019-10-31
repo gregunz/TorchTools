@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 
 class Sample(Dataset):
     def __init__(self, dataset: Dataset, num_samples: int = None, random_sampling=False):
-        assert num_samples > 0, 'need at least one sample in the dataset'
+        assert num_samples is None or num_samples > 0, 'need at least one sample in the dataset'
 
         self.dataset = dataset
         n = len(dataset)
