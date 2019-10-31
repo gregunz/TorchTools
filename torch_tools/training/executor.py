@@ -16,12 +16,14 @@ class Executor:
         exp_name (str): name of the experience
         model_dir (str): path to model weights directory
         gpus (list): list of cuda gpus, empty list for cpu.
+        ckpt_period (int):
     """
 
-    def __init__(self, exp_name, model_dir, gpus):
+    def __init__(self, exp_name, model_dir, gpus, ckpt_period):
         self.exp_name = exp_name
         self.model_dir = model_dir
         self.gpus = gpus
+        self.ckpt_period = ckpt_period
 
     @abstractmethod
     def train(self, strategy: S.Strategy, epochs: int, version=None):
@@ -52,6 +54,7 @@ class Executor:
         """
         raise NotImplementedError
 
+
     @staticmethod
     def add_argz(parser: ArgumentParser):
         default_epochs = 10
@@ -78,3 +81,6 @@ class Executor:
         parser.add_argument('--gpus', type=int, default=default_gpus,
                             help=f'which cuda device is used in binary representation '
                                  f'(i.e. 5 = 0101 = cuda:0 and cuda:2) (default: {default_gpus})')
+        default_ckpt_period = 5
+        parser.add_argument('--ckpt_period', type=int, default=default_ckpt_period,
+                            help=f'save model every ckpt_period epoch')

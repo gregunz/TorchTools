@@ -20,11 +20,15 @@ class VAEStrategy(AEStrategy):
         mse_loss, kld_loss = self.loss(output, x)
         loss = mse_loss + kld_loss * self.kl_coef
 
-        self.log({
-            'training/batch/loss': loss,
-            'training/batch/loss_mse': mse_loss,
-            'training/batch/loss_kld': kld_loss,
-        }, global_step=self.num_tng_batch * epoch_idx + batch_idx)
+        self.log(
+            metrics_dict={
+                'training/batch/loss': loss,
+                'training/batch/loss_mse': mse_loss,
+                'training/batch/loss_kld': kld_loss,
+            },
+            global_step=self.num_tng_batch * epoch_idx + batch_idx,
+            interval=20,
+        )
 
         return {
             'loss': loss,
@@ -36,11 +40,15 @@ class VAEStrategy(AEStrategy):
         mse_loss, kld_loss = self.loss(output, x)
         val_loss = mse_loss + kld_loss * self.kl_coef
 
-        self.log({
-            'validation/batch/loss': val_loss,
-            'validation/batch/loss_mse': mse_loss,
-            'validation/batch/loss_kld': kld_loss,
-        }, global_step=self.num_val_batch * epoch_idx + batch_idx)
+        self.log(
+            metrics_dict={
+                'validation/batch/loss': val_loss,
+                'validation/batch/loss_mse': mse_loss,
+                'validation/batch/loss_kld': kld_loss,
+            },
+            global_step=self.num_val_batch * epoch_idx + batch_idx,
+            interval=10,
+        )
 
         x_hat, _, _ = output  # logging output image
         if self.output_to_img is not None and batch_idx == 0:

@@ -25,8 +25,6 @@ class DCGANStrategy(GANStrategy, ImageLogger):
         self.lambd = 0.1
         self.generated_imgs = None
         self.log_interval = 20
-        self.d_losses = []
-        self.g_losses = []
         self.fixed_noise = torch.randn(32, *self.noise_input_size)  # next(iter(self.tng_dl)).size(0)
 
     def tng_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
@@ -49,7 +47,7 @@ class DCGANStrategy(GANStrategy, ImageLogger):
             )
 
         if batch_idx == 0:
-            images = torch.tanh(self.generator(self.fixed_noise.to(x_real.device)))
+            images = torch.tanh(self.generator(self.fixed_noise.to(x_real.device)).detach())
             self.log_images(
                 tag='training/generated',
                 images_tensor=images.view(4, -1, *x_real.size()[1:]),
@@ -65,13 +63,13 @@ class DCGANStrategy(GANStrategy, ImageLogger):
 
         g_loss = F.binary_cross_entropy_with_logits(logits_fake, y_fake)
 
-        if (batch_idx + 1) % self.log_interval == 0:
-            self.log({
-                'training/batch/generator/loss': torch.stack(self.g_losses).mean(),
-            }, global_step=self.num_tng_batch * epoch_idx + batch_idx)
-            self.g_losses = [g_loss.detach()]
-        else:
-            self.g_losses.append(g_loss.detach())
+        self.log(
+            metrics_dict={
+                'training/batch/generator/loss': g_loss,
+            },
+            global_step=self.num_tng_batch * epoch_idx + batch_idx,
+            interval=20,
+        )
 
         # passing the the generated image to discriminator
         self.generated_imgs = x_fake.detach()
@@ -95,13 +93,13 @@ class DCGANStrategy(GANStrategy, ImageLogger):
 
         d_loss = F.binary_cross_entropy_with_logits(logits, targets)
 
-        if (batch_idx + 1) % self.log_interval == 0:
-            self.log({
-                'training/batch/discriminator/loss': torch.stack(self.d_losses).mean(),
-            }, global_step=self.num_tng_batch * epoch_idx + batch_idx)
-            self.d_losses = [d_loss.detach()]
-        else:
-            self.d_losses.append(d_loss.detach())
+        self.log(
+            metrics_dict={
+                'training/batch/discriminator/loss': d_loss,
+            },
+            global_step=self.num_tng_batch * epoch_idx + batch_idx,
+            interval=20,
+        )
 
         return {
             'loss': d_loss,

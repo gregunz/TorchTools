@@ -3,6 +3,7 @@ from abc import abstractmethod
 from argparse import ArgumentParser
 from typing import Union, List, Tuple
 
+import torch
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
@@ -11,6 +12,7 @@ from werkzeug.utils import cached_property
 
 from .util import AggFn, Logger
 
+OptimOrSched = Union[Optimizer, List[Optimizer], Tuple[List[Optimizer], List[_LRScheduler]]]
 
 class Strategy(Logger):
     """
@@ -25,6 +27,7 @@ class Strategy(Logger):
         # self.name = name
         self.log_dir = log_dir
         self._logger = None
+        self._log_metrics_cache = dict()
 
     @abstractmethod
     def tng_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
@@ -57,7 +60,7 @@ class Strategy(Logger):
         pass  # raise NotImplementedError
 
     @abstractmethod
-    def optim_schedulers(self) -> Union[Optimizer, List[Optimizer], Tuple[List[Optimizer], List[_LRScheduler]]]:
+    def optim_schedulers(self) -> OptimOrSched:
         """
         Create the optimizers and schedulers
 
@@ -204,24 +207,31 @@ class Strategy(Logger):
     def logger(self, logger):
         self._logger = logger
 
-    def log(self, metrics_dict: dict, global_step: int) -> None:
+    def log(self, metrics_dict: dict, global_step: int, interval: int = 1) -> None:
         """
         Logs a dictionary of scalars
 
         Args:
             metrics_dict:
             global_step:
+            interval:
 
         """
-        try:
-            from pytorch_lightning.logging import TestTubeLogger
-            if isinstance(self._logger, TestTubeLogger):
-                self._logger.log_metrics(metrics_dict, step_num=global_step)
-                return
-        except ImportError:
-            pass
-        for k, v in metrics_dict.items():
-            self.logger.add_scalar(tag=k, scalar_value=v, global_step=global_step)
+        for name, scalar in metrics_dict.items():
+            self._log_metrics_cache[name] = self._log_metrics_cache.get(name, []) + [scalar.item()]
+        if global_step % interval == 0:
+            metrics_dict = {name: torch.tensor(self._log_metrics_cache[name]).mean().item()
+                            for name, _ in metrics_dict.items()}
+            self._log_metrics_cache = dict()
+            try:
+                from pytorch_lightning.logging import TestTubeLogger
+                if isinstance(self._logger, TestTubeLogger):
+                    self._logger.log_metrics(metrics_dict, step_num=global_step)
+                    return
+            except ImportError:
+                pass
+            for k, v in metrics_dict.items():
+                self.logger.add_scalar(tag=k, scalar_value=v, global_step=global_step)
 
     def _add_graph(self, model) -> None:
         try:

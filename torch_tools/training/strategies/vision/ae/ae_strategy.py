@@ -35,9 +35,11 @@ class AEStrategy(SimpleStrategy, ImageLogger):
 
         loss = self.loss(x_hat, x)
 
-        self.log({
-            'training/loss': loss,
-        }, global_step=self.num_tng_batch * epoch_idx + batch_idx)
+        self.log(
+            metrics_dict={'training/loss': loss, },
+            global_step=self.num_tng_batch * epoch_idx + batch_idx,
+            interval=20,
+        )
 
         return {
             'loss': loss,
@@ -49,10 +51,14 @@ class AEStrategy(SimpleStrategy, ImageLogger):
         x_hat = self.net(x)
         losses = torch.mean(((x - x_hat) ** 2).view(x.size(0), -1), dim=1)
 
-        self.log({
-            'validation/batch/loss': losses.mean(),
-            'validation/batch/loss_std': losses.std(),
-        }, global_step=self.num_val_batch * epoch_idx + batch_idx)
+        self.log(
+            metrics_dict={
+                'validation/batch/loss': losses.mean(),
+                'validation/batch/loss_std': losses.std(),
+            },
+            global_step=self.num_val_batch * epoch_idx + batch_idx,
+            interval=10,
+        )
 
         if self.output_to_img is not None and batch_idx == 0:
             self.log_images(
@@ -74,5 +80,5 @@ class AEStrategy(SimpleStrategy, ImageLogger):
         }
         self.log(logs, global_step=epoch_idx)
         return {
-            'val_loss': loss
+            'val_loss': loss.item()
         }

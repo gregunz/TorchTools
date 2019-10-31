@@ -25,15 +25,20 @@ class LightningExecutor(Executor):
         gpus (list): list of cuda gpus, empty list for cpu.
     """
 
-    def __init__(self, exp_name, model_dir, gpus, **kwargs):
-        super().__init__(exp_name, model_dir, int_to_flags(gpus))
+    def __init__(self, exp_name, model_dir, gpus, ckpt_period, **kwargs):
+        super().__init__(exp_name, model_dir, int_to_flags(gpus), ckpt_period)
         self._last_trainer: pl.Trainer = None
+        self._kwargs = kwargs
 
     def train(self, strategy: Strategy, epochs, version=None, early_stop_callback=None, **kwargs) \
             -> Tuple[Strategy, int]:
 
         module = _LightningModule.load(strategy)
         logger = self._get_logger(strategy=strategy, version=version)
+
+        hparams = _HParams() + self._kwargs + kwargs
+        print(vars(hparams))
+        logger.log_hyperparams(hparams)
         version = logger.experiment.version
 
         trainer = self._get_trainer(
@@ -88,6 +93,7 @@ class LightningExecutor(Executor):
         # todo: do this somewhere else
         # logger.experiment.argparse(argparser=self.argz)
         strategy.logger = logger
+        self._logger = logger
         if add_graph:
             strategy.add_graph()
         return logger
@@ -103,10 +109,7 @@ class LightningExecutor(Executor):
             filepath=ckpt_path,
             prefix=f'weights',
             verbose=True,
-            period=2,
-            # save_best_only=False,
-            # monitor='val_loss',
-            # mode='min',
+            period=self.ckpt_period,
         )
 
         return pl.Trainer(
@@ -121,6 +124,13 @@ class LightningExecutor(Executor):
             distributed_backend=d_backend,
         )
 
+
+class _HParams:
+    __dict__ = dict()
+
+    def __add__(self, kwargs):
+        self.__dict__.update(kwargs)
+        return self
 
 class _LightningModule(pl.LightningModule):
     def __init__(self, strategy: Strategy):
