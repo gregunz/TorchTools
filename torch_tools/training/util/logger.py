@@ -1,11 +1,9 @@
 from abc import abstractmethod, ABCMeta
 
-import matplotlib.pyplot as plt
-import numpy as np
-import torch
-from sklearn import metrics
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
+
+from torch_tools.metrics import compute_roc_auc, create_roc_figure
 
 
 class Logger:
@@ -15,38 +13,14 @@ class Logger:
         raise NotImplementedError
 
     def log_auc_roc(self, tag, outputs, targets, global_step):
-        assert isinstance(outputs, torch.Tensor)
-        assert isinstance(targets, torch.Tensor)
-        outputs = outputs.squeeze()
-        targets = targets.squeeze()
-        assert outputs.dim() == 1
-        assert targets.dim() == 1
-        assert outputs.size() == targets.size()
-        target_values = targets.unique()
-        assert target_values.size(0) == 2
-        assert set(target_values.tolist()) == {0, 1}
-
-        targets = targets.detach().cpu()
-        outputs = outputs.detach().cpu()
-
-        fpr, tpr, threshold = metrics.roc_curve(targets, outputs)
-
-        roc_figure = plt.figure(figsize=(5, 5))
-        plt.title('Receiver Operating Characteristic')
-        plt.ylabel('True Positive Rate')
-        plt.xlabel('False Positive Rate')
-        plt.xlim([0, 1])
-        plt.ylim([0, 1])
-        plt.plot([0, 1], [0, 1], 'r--')
-        plt.plot(fpr, tpr)
+        fpr, tpr, _, auc = compute_roc_auc(outputs, targets)
+        roc_figure = create_roc_figure(fpr, tpr)
 
         self.logger.add_figure(
             tag=f'{tag}/roc',
             figure=roc_figure,
             global_step=global_step,
         )
-
-        auc = np.trapz(tpr, fpr)
 
         self.logger.add_scalar(
             tag=f'{tag}/auc',
