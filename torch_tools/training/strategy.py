@@ -204,7 +204,7 @@ class Strategy(Logger):
             while log_dir.exists():
                 i += 1
                 log_dir = Path(self.log_dir) / f'version_{i}'
-            self._logger = SummaryWriter(log_dir + 'tf')
+            self._logger = SummaryWriter(log_dir / 'tf')
         else:
             try:
                 from pytorch_lightning.logging import TestTubeLogger
