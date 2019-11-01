@@ -6,7 +6,6 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
-from torch import nn
 
 from .util import int_to_flags
 from .. import Strategy, Executor
@@ -105,12 +104,14 @@ class LightningExecutor(Executor):
         d_backend = None if len(self.gpus) <= 1 else 'dp'
 
         ckpt_path = Path(self.model_dir) / self.exp_name / f'version_{logger.experiment.version}'
-        checkpoint_callback = ModelCheckpoint(
-            filepath=ckpt_path,
-            prefix=f'weights',
-            verbose=True,
-            period=self.ckpt_period,
-        )
+        checkpoint_callback = None
+        if self.ckpt_period > 0:
+            checkpoint_callback = ModelCheckpoint(
+                filepath=ckpt_path,
+                prefix=f'weights',
+                verbose=True,
+                period=self.ckpt_period,
+            )
 
         return pl.Trainer(
             logger=logger,
@@ -131,6 +132,7 @@ class _HParams:
     def __add__(self, kwargs):
         self.__dict__.update(kwargs)
         return self
+
 
 class _LightningModule(pl.LightningModule):
     def __init__(self, strategy: Strategy):
@@ -195,7 +197,7 @@ class _LightningModule(pl.LightningModule):
     @staticmethod
     def load(strategy: Strategy) -> '_LightningModule':
         module = _LightningModule(strategy)
-        # todo: do better here!
+        # todo: do better than 'did_delete'!
         if not getattr(module.__class__, 'did_delete', False):
             if strategy.val_data_loader() is None:
                 delattr(module.__class__, 'validation_step')
@@ -205,9 +207,8 @@ class _LightningModule(pl.LightningModule):
                 delattr(module.__class__, 'test_end')
             setattr(module.__class__, 'did_delete', True)
 
-        for k, v in strategy.__dict__.items():
-            if isinstance(v, nn.Module):
-                setattr(module, k, v)
+        for i, m in strategy.modules:
+            setattr(module, f'module_{i:04d}', m)
 
         return module
 

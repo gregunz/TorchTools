@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from collections import Sequence
 
 from .. import Strategy
 
@@ -11,8 +10,8 @@ class GANStrategy(Strategy):
         self._num_dis_opt = None
 
     def optim_schedulers(self):
-        gen_opts, gen_scheds = self.__opt_sched_unpack(self.generator_optim_schedulers())
-        dis_opts, dis_scheds = self.__opt_sched_unpack(self.discriminator_optim_schedulers())
+        gen_opts, gen_scheds = self.opt_sched_unpack(self.generator_optim_schedulers())
+        dis_opts, dis_scheds = self.opt_sched_unpack(self.discriminator_optim_schedulers())
         self._num_gen_opt = len(gen_opts)
         self._num_dis_opt = len(dis_opts)
         return gen_opts + dis_opts, gen_scheds + dis_scheds
@@ -65,17 +64,6 @@ class GANStrategy(Strategy):
 
     def tst_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
         pass
-
-    def __opt_sched_unpack(self, opt_sched):
-        try:
-            opt, sched = opt_sched
-        except TypeError:
-            opt, sched = opt_sched, []
-        if not isinstance(opt, Sequence):
-            opt = [opt]
-        if not isinstance(sched, Sequence):
-            sched = [sched]
-        return opt, sched
 
     def __check_optimizer_idx(self, optimizer_idx):
         if optimizer_idx >= self._num_gen_opt + self._num_dis_opt:

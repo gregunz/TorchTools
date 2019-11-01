@@ -1,9 +1,10 @@
 import warnings
 from abc import abstractmethod
 from argparse import ArgumentParser
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Sequence
 
 import torch
+from torch import nn
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
@@ -172,6 +173,10 @@ class Strategy(Logger):
     def add_argz(parser: ArgumentParser) -> None:
         pass
 
+    @property
+    def modules(self):
+        return [module for module in self.__dict__.values() if isinstance(module, nn.Module)]
+
     @cached_property
     def num_tng_batch(self):
         return len(self.tng_data_loader())
@@ -239,3 +244,15 @@ class Strategy(Logger):
             self.logger.add_graph(model, x)
         except Exception as e:
             warnings.warn("Failed to save model graph: {}".format(e))
+
+    @staticmethod
+    def opt_sched_unpack(opt_sched):
+        try:
+            opt, sched = opt_sched
+        except TypeError:
+            opt, sched = opt_sched, []
+        if not isinstance(opt, Sequence):
+            opt = [opt]
+        if not isinstance(sched, Sequence):
+            sched = [sched]
+        return opt, sched
