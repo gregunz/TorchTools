@@ -1,4 +1,4 @@
-from multiprocessing import Manager
+from torch.multiprocessing import Manager
 
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
@@ -13,7 +13,10 @@ class CachedDataset(Dataset):
 
     def __init__(self, dataset: Dataset, init_caching=False):
         self.dataset = dataset
-        self.cache = Manager().dict()
+        if init_caching:
+            self.cache = dict()
+        else:
+            self.cache = Manager().dict()
         if init_caching:
             for idx, data in enumerate(tqdm(self.dataset)):
                 self.cache[idx] = data
