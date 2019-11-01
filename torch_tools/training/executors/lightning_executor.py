@@ -85,7 +85,7 @@ class LightningExecutor(Executor):
 
     def _get_logger(self, strategy: Strategy, version: int = None, add_graph=True):
         logger = TestTubeLogger(
-            save_dir=strategy.log_dir,
+            save_dir=str(strategy.log_dir).replace(self.exp_name, ''),  # the name is already added to the save_dir
             name=self.exp_name,
             version=version,
         )
@@ -207,7 +207,7 @@ class _LightningModule(pl.LightningModule):
                 delattr(module.__class__, 'test_end')
             setattr(module.__class__, 'did_delete', True)
 
-        for i, m in strategy.modules:
+        for i, m in enumerate(strategy.modules):
             setattr(module, f'module_{i:04d}', m)
 
         return module

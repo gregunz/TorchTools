@@ -7,13 +7,13 @@ from .. import Strategy, Executor
 
 
 class SimpleExecutor(Executor):
-    def __init__(self, exp_name, model_dir, gpus, ckpt_period):
+    def __init__(self, exp_name, model_dir, gpus, ckpt_period, **kwargs):
         super().__init__(exp_name, model_dir, int_to_flags(gpus), ckpt_period)
         assert len(self.gpus) <= 1, 'not handling multiple GPUs yet'
         self.device = torch.device('cpu' if len(self.gpus) == 0 else f'cuda:{self.gpus[0]}')
         self.mode = None
 
-    def train(self, strategy: Strategy, epochs: int, version=None):
+    def train(self, strategy: Strategy, epochs: int, version=None, **kwargs):
         do_validation = strategy.val_data_loader() is not None
         optimizers, schedulers = strategy.opt_sched_unpack(strategy.optim_schedulers())
 
@@ -55,11 +55,11 @@ class SimpleExecutor(Executor):
             for sched in schedulers:
                 sched.step()
 
-    def test(self, strategy: Strategy, version=None):
+    def test(self, strategy: Strategy, version=None, **kwargs):
         optimizers, _ = strategy.opt_sched_unpack(strategy.optim_schedulers())
         outputs = []
         self._set_eval_mode(strategy)  # set model.eval()
-        for batch_idx, batch in enumerate(strategy.tst_data_loader()):
+        for batch_idx, batch in enumerate(tqdm(strategy.tst_data_loader())):
             for t in batch:
                 if isinstance(t, torch.Tensor):
                     t.to(self.device)

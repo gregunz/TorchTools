@@ -1,6 +1,7 @@
 import warnings
 from abc import abstractmethod
 from argparse import ArgumentParser
+from pathlib import Path
 from typing import Union, List, Tuple, Sequence
 
 import torch
@@ -174,7 +175,7 @@ class Strategy(Logger):
         pass
 
     @property
-    def modules(self):
+    def modules(self) -> List[nn.Module]:
         return [module for module in self.__dict__.values() if isinstance(module, nn.Module)]
 
     @cached_property
@@ -198,7 +199,12 @@ class Strategy(Logger):
         """
         if self._logger is None:
             # warnings.warn('Accessing logger but it is not set. Instantiating one with default arguments')
-            self._logger = SummaryWriter(self.log_dir)
+            i = 0
+            log_dir = Path(self.log_dir) / f'version_{i}'
+            while log_dir.exists():
+                i += 1
+                log_dir = Path(self.log_dir) / f'version_{i}'
+            self._logger = SummaryWriter(log_dir + 'tf')
         else:
             try:
                 from pytorch_lightning.logging import TestTubeLogger

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import invertransforms as T
 from classification_strategy import ClassifierStrategy
 from test_tube import HyperOptArgumentParser
@@ -6,7 +8,7 @@ from torchvision.datasets import MNIST, CIFAR10
 
 from torch_tools.datasets.util import split
 from torch_tools.models.vision import SimpLeNet
-from torch_tools.training.executors import LightningExecutor
+from torch_tools.training.executors import SimpleExecutor as Executor
 
 if __name__ == '__main__':
     parser = HyperOptArgumentParser()
@@ -16,7 +18,7 @@ if __name__ == '__main__':
     ########################
 
     ClassifierStrategy.add_argz(parser)
-    LightningExecutor.add_argz(parser)
+    Executor.add_argz(parser)
     parser.add_argument('--val_percentage', type=float, default=0.1)
     parser.add_argument('--dataset_name', type=str, default='mnist')
     parser.add_argument('--tng_batch_size', type=int, default=64)
@@ -62,6 +64,9 @@ if __name__ == '__main__':
     # [STRATEGY] it describes the training #
     ########################################
 
+    exp_name = f'{net.__class__.__name__.lower()}/{argz.dataset_name}'
+    argz.log_dir = Path(argz.log_dir) / exp_name
+
     classifier = ClassifierStrategy(
         tng_dataloader=tng_dataloader,
         val_dataloader=val_dataloader,
@@ -74,8 +79,7 @@ if __name__ == '__main__':
     # [EXECUTOR] it handles the rest #
     ##################################
 
-    exp_name = f'{net.__class__.__name__.lower()}/{argz.dataset_name}'
-    executor = LightningExecutor(exp_name=exp_name, **vars(argz))
+    executor = Executor(exp_name=exp_name, **vars(argz))
 
     executor.train(strategy=classifier, **vars(argz))
-    executor.test()
+    executor.test(strategy=classifier)
