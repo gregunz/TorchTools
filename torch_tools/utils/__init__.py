@@ -2,6 +2,7 @@ from pathlib import Path
 
 from .cnn_out_size import cnn_out_size
 from .seed import set_seed
+from .tensorboard_logs import TensorboardLogs
 
 
 def get_incremental_path(root: Path, s: str) -> Path:

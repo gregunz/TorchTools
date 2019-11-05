@@ -4,6 +4,8 @@ def int_to_flags(n):
 
 
 def flags_to_int(flags):
+    if len(flags) == 0:
+        return 0
     flags_set = set(flags)
     bitlist = [int(i in flags_set) for i in range(max(flags) + 1)][::-1]
     out = 0

@@ -4,21 +4,16 @@ from typing import Tuple, Union
 import torch
 from torch import nn
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
 
 from torch_tools.training.strategies import SimpleStrategy
 from torch_tools.training.util import ImageLogger
 
 
 class AEStrategy(SimpleStrategy, ImageLogger):
-    def __init__(self, tng_dataloader: DataLoader, auto_encoder: nn.Module, lr: float, betas: Tuple[float, float],
-                 log_dir: Union[str, Path], val_dataloader: DataLoader = None, tst_dataloader: DataLoader = None,
+    def __init__(self, auto_encoder: nn.Module, lr: float, betas: Tuple[float, float], log_dir: Union[str, Path],
                  output_to_img=None, **kwargs):
         SimpleStrategy.__init__(
             self,
-            tng_dataloader=tng_dataloader,
-            val_dataloader=val_dataloader,
-            tst_dataloader=tst_dataloader,
             net=auto_encoder,
             lr=lr, betas=betas,
             log_dir=log_dir,
@@ -28,7 +23,7 @@ class AEStrategy(SimpleStrategy, ImageLogger):
     def loss(self, output, target):
         return F.mse_loss(output, target)
 
-    def tng_step(self, batch, batch_idx, optimizer_idx, epoch_idx) -> dict:
+    def tng_step(self, batch, batch_idx, optimizer_idx, epoch_idx, num_batches: int) -> dict:
         # forward pass
         x, _ = batch  # ignoring label
         x_hat = self.net(x)
@@ -37,7 +32,7 @@ class AEStrategy(SimpleStrategy, ImageLogger):
 
         self.log(
             metrics_dict={'training/loss': loss, },
-            global_step=self.num_tng_batch * epoch_idx + batch_idx,
+            global_step=num_batches * epoch_idx + batch_idx,
             interval=20,
         )
 
@@ -45,7 +40,7 @@ class AEStrategy(SimpleStrategy, ImageLogger):
             'loss': loss,
         }
 
-    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
+    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
         # forward pass
         x, _ = batch  # ignoring label
         x_hat = self.net(x)
@@ -56,7 +51,7 @@ class AEStrategy(SimpleStrategy, ImageLogger):
                 'validation/batch/loss': losses.mean(),
                 'validation/batch/loss_std': losses.std(),
             },
-            global_step=self.num_val_batch * epoch_idx + batch_idx,
+            global_step=num_batches * epoch_idx + batch_idx,
             interval=10,
         )
 

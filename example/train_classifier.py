@@ -67,19 +67,18 @@ if __name__ == '__main__':
     exp_name = f'{net.__class__.__name__.lower()}/{argz.dataset_name}'
     argz.log_dir = Path(argz.log_dir) / exp_name
 
-    classifier = ClassifierStrategy(
-        tng_dataloader=tng_dataloader,
-        val_dataloader=val_dataloader,
-        tst_dataloader=tst_dataloader,
-        net=net,
-        **vars(argz),
-    )
+    classifier = ClassifierStrategy(net=net, **vars(argz))
 
     ##################################
     # [EXECUTOR] it handles the rest #
     ##################################
 
-    executor = Executor(exp_name=exp_name, **vars(argz))
+    executor = Executor(
+        tng_dataloader=tng_dataloader,
+        val_dataloader=val_dataloader,
+        tst_dataloader=tst_dataloader,
+        exp_name=exp_name,
+        **vars(argz)
+    )
 
-    executor.train(strategy=classifier, **vars(argz))
-    executor.test(strategy=classifier)
+    executor.train_test(strategy=classifier, **vars(argz))

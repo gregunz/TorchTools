@@ -1,9 +1,8 @@
-import os
+import copy
 from pathlib import Path
 from typing import Tuple, Any
 
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
 
@@ -17,26 +16,28 @@ class LightningExecutor(Executor):
     An Executor using pytorch-lightning library for executing strategies.
 
     It handles multiple gpus, checkpointing, early stopping,..
-
-    Args:
-        exp_name (str): name of the experience
-        model_dir (str): path to model weights directory
-        gpus (list): list of cuda gpus, empty list for cpu.
     """
 
-    def __init__(self, exp_name, model_dir, gpus, ckpt_period, **kwargs):
-        super().__init__(exp_name, model_dir, int_to_flags(gpus), ckpt_period)
+    def __init__(self, tng_dataloader, exp_name, model_dir, gpus: int, ckpt_period: int, val_dataloader=None,
+                 tst_dataloader=None, **kwargs):
+        super().__init__(
+            tng_dataloader=tng_dataloader,
+            exp_name=exp_name,
+            model_dir=model_dir,
+            gpus=int_to_flags(gpus),
+            ckpt_period=ckpt_period,
+            val_dataloader=val_dataloader,
+            tst_dataloader=tst_dataloader,
+        )
         self._last_trainer: pl.Trainer = None
         self._kwargs = kwargs
 
     def train(self, strategy: Strategy, epochs, version=None, early_stop_callback=None, **kwargs) \
             -> Tuple[Strategy, int]:
 
-        module = _LightningModule.load(strategy)
+        module = _LightningModule.load(strategy=strategy, executor=self)
         logger = self._get_logger(strategy=strategy, version=version)
-
         hparams = _HParams() + self._kwargs + kwargs
-        print(vars(hparams))
         logger.log_hyperparams(hparams)
         version = logger.experiment.version
 
@@ -54,15 +55,6 @@ class LightningExecutor(Executor):
             print(f'Restart anytime from here using version={version}')
         return strategy, version
 
-    def load(self, strategy, version, epoch=None, **kwargs):
-        ckpt_dir = f'{self.model_dir}/{self.exp_name}/version_{version}'
-        prefix = 'weights_ckpt_epoch_'
-        suffix = '.ckpt'
-        if epoch is None:
-            epoch = max([int(p[len(prefix):-len(suffix)]) for p in os.listdir(ckpt_dir) if p.startswith(prefix)])
-        module = _LightningModule.load(strategy=strategy)
-        module.load_state_dict(torch.load(f'{ckpt_dir}/{prefix}{epoch}{suffix}')['state_dict'])
-
     def test(self, strategy=None, version=None, **kwargs):
         if strategy is not None or version is not None:
             logger = self._get_logger(strategy=strategy, version=version, add_graph=False)
@@ -70,7 +62,7 @@ class LightningExecutor(Executor):
                 logger=logger,
                 epochs=0,
             )
-            module = _LightningModule.load(strategy=strategy)
+            module = _LightningModule.load(strategy=strategy, executor=self)
         else:
             if self._last_trainer is not None:
                 trainer = self._last_trainer
@@ -135,9 +127,10 @@ class _HParams:
 
 
 class _LightningModule(pl.LightningModule):
-    def __init__(self, strategy: Strategy):
+    def __init__(self, strategy: Strategy, executor: Executor):
         super().__init__()
         self.strat = strategy
+        self.executor = executor
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError('Do not need to forward in a module')
@@ -147,19 +140,20 @@ class _LightningModule(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        return self.strat.tng_data_loader()
+        return self.executor.tng_dataloader
 
     @pl.data_loader
     def val_dataloader(self):
-        return self.strat.val_data_loader()
+        return self.executor.val_dataloader
 
     @pl.data_loader
     def test_dataloader(self):
-        return self.strat.tst_data_loader()
+        return self.executor.tst_dataloader
 
     def training_step(self, *args):
         args = _args_step(args)
-        outputs = self.strat.tng_step(*args, epoch_idx=self.current_epoch)
+        outputs = self.strat.tng_step(*args, epoch_idx=self.current_epoch,
+                                      num_batches=len(self.executor.tng_dataloader))
         assert 'loss' in outputs, 'training step should return a dict containing the loss'
         other_logs = {k: v for k, v in outputs.items() if k != 'loss'}
         return {
@@ -170,7 +164,7 @@ class _LightningModule(pl.LightningModule):
 
     def validation_step(self, *args):
         args = _args_step(args)
-        return self.strat.val_step(*args, epoch_idx=self.current_epoch)
+        return self.strat.val_step(*args, epoch_idx=self.current_epoch, num_batches=len(self.executor.val_dataloader))
 
     def validation_end(self, outputs):
         outputs = self.strat.val_agg_outputs(outputs, AggFn(outputs), self.current_epoch)
@@ -181,7 +175,7 @@ class _LightningModule(pl.LightningModule):
 
     def test_step(self, *args):
         args = _args_step(args)
-        return self.strat.tst_step(*args)
+        return self.strat.tst_step(*args, num_batches=len(self.executor.tst_dataloader))
 
     def test_end(self, outputs):
         outputs = self.strat.tst_agg_outputs(outputs, AggFn(outputs))
@@ -191,18 +185,19 @@ class _LightningModule(pl.LightningModule):
         }
 
     # fix: https://youtrack.jetbrains.com/issue/PY-37601
-    def __call__(self, *input, **kwargs) -> Any:
-        return super().__call__(*input, **kwargs)
+    def __call__(self, *inputs, **kwargs) -> Any:
+        return super().__call__(*inputs, **kwargs)
 
     @staticmethod
-    def load(strategy: Strategy) -> '_LightningModule':
-        module = _LightningModule(strategy)
+    def load(strategy: Strategy, executor: Executor) -> '_LightningModule':
+        executor = copy.copy(executor)  # not sure if necessary
+        module = _LightningModule(strategy, executor)
         # todo: do better than 'did_delete'!
         if not getattr(module.__class__, 'did_delete', False):
-            if strategy.val_data_loader() is None:
+            if executor.val_dataloader is None:
                 delattr(module.__class__, 'validation_step')
                 delattr(module.__class__, 'validation_end')
-            if strategy.tst_data_loader() is None:
+            if executor.tst_dataloader is None:
                 delattr(module.__class__, 'test_step')
                 delattr(module.__class__, 'test_end')
             setattr(module.__class__, 'did_delete', True)

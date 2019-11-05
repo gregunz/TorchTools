@@ -1,20 +1,19 @@
-import warnings
 from abc import abstractmethod
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Union, List, Tuple, Sequence
 
 import torch
+from pytorch_lightning.logging import TestTubeLogger
 from torch import nn
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from werkzeug.utils import cached_property
 
 from .util import AggFn, Logger
 
 OptimOrSched = Union[Optimizer, List[Optimizer], Tuple[List[Optimizer], List[_LRScheduler]]]
+
 
 class Strategy(Logger):
     """
@@ -32,36 +31,6 @@ class Strategy(Logger):
         self._log_metrics_cache = dict()
 
     @abstractmethod
-    def tng_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
-        """
-        Create the `DataLoader` for the training steps
-
-        Returns (DataLoader):
-
-        """
-        raise NotImplementedError
-
-    #  @abstractmethod
-    def val_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
-        """
-        [Optional] Create the `DataLoader` for the validation steps
-
-        Returns (DataLoader):
-
-        """
-        pass  # raise NotImplementedError
-
-    # @abstractmethod
-    def tst_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
-        """
-        [Optional] Create the `DataLoader` for the testing steps
-
-        Returns (DataLoader):
-
-        """
-        pass  # raise NotImplementedError
-
-    @abstractmethod
     def optim_schedulers(self) -> OptimOrSched:
         """
         Create the optimizers and schedulers
@@ -71,7 +40,7 @@ class Strategy(Logger):
         raise NotImplementedError
 
     @abstractmethod
-    def tng_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
+    def tng_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
         """
         Describe the training step. It should return a dict with at least the loss.
 
@@ -80,6 +49,7 @@ class Strategy(Logger):
             batch_idx: index of the the batch
             optimizer_idx:
             epoch_idx:
+            num_batches:
 
         Returns (dict): it must at least contains the loss: {
             'loss': tng_loss,
@@ -89,7 +59,7 @@ class Strategy(Logger):
         raise NotImplementedError
 
     # @abstractmethod
-    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
+    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
         """
         Describe the validation step. It should return a dict with at least the loss.
         The dicts will be aggregated over steps and provided as list to `val_agg_outputs`.
@@ -100,6 +70,7 @@ class Strategy(Logger):
             batch_idx:
             optimizer_idx:
             epoch_idx:
+            num_batches:
 
         Returns (dict): for example: {
             'loss': val_loss,
@@ -127,7 +98,7 @@ class Strategy(Logger):
         pass  # raise NotImplementedError
 
     # @abstractmethod
-    def tst_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
+    def tst_step(self, batch, batch_idx: int, optimizer_idx: int, num_batches: int) -> dict:
         """
         Describe the testing step. It should return a dict with at least the loss.
         The dicts will be aggregated over steps and provided as list to `tst_agg_outputs`.
@@ -135,6 +106,7 @@ class Strategy(Logger):
         Args:
             batch:
             batch_idx:
+            num_batches:
             optimizer_idx:
 
         Returns (dict): {
@@ -178,18 +150,6 @@ class Strategy(Logger):
     def modules(self) -> List[nn.Module]:
         return [module for module in self.__dict__.values() if isinstance(module, nn.Module)]
 
-    @cached_property
-    def num_tng_batch(self):
-        return len(self.tng_data_loader())
-
-    @cached_property
-    def num_val_batch(self):
-        return len(self.val_data_loader())
-
-    @cached_property
-    def num_tst_batch(self):
-        return len(self.tst_data_loader())
-
     @property
     def logger(self) -> SummaryWriter:
         """
@@ -198,16 +158,9 @@ class Strategy(Logger):
         Returns:
         """
         if self._logger is None:
-            # warnings.warn('Accessing logger but it is not set. Instantiating one with default arguments')
-            i = 0
-            log_dir = Path(self.log_dir) / f'version_{i}'
-            while log_dir.exists():
-                i += 1
-                log_dir = Path(self.log_dir) / f'version_{i}'
-            self._logger = SummaryWriter(log_dir / 'tf')
+            self.set_default_logger()
         else:
             try:
-                from pytorch_lightning.logging import TestTubeLogger
                 if isinstance(self._logger, TestTubeLogger):
                     return self._logger.experiment
             except ImportError as e:
@@ -217,6 +170,31 @@ class Strategy(Logger):
     @logger.setter
     def logger(self, logger):
         self._logger = logger
+
+    def set_default_logger(self, version: int = None):
+        if version is None:
+            i = 0
+            log_dir = Path(self.log_dir) / f'version_{i}'
+            while log_dir.exists():
+                i += 1
+                log_dir = Path(self.log_dir) / f'version_{i}'
+        else:
+            log_dir = Path(self.log_dir) / f'version_{version}'
+        self.logger = SummaryWriter(log_dir / 'tf')
+
+    def log_hyperparams(self, hparams):
+        params = f'''##### Hyperparameters\n'''
+        row_header = '''parameter|value\n-|-\n'''
+
+        mkdown_log = ''.join([
+            params,
+            row_header,
+            *[f'''{k}|{v}\n''' for k, v in hparams.items()],
+        ])
+        self.logger.add_text(
+            tag='hparams',
+            text_string=mkdown_log,
+        )
 
     def log(self, metrics_dict: dict, global_step: int, interval: int = 1) -> None:
         """
@@ -235,7 +213,6 @@ class Strategy(Logger):
                             for name, _ in metrics_dict.items()}
             self._log_metrics_cache = dict()
             try:
-                from pytorch_lightning.logging import TestTubeLogger
                 if isinstance(self._logger, TestTubeLogger):
                     self._logger.log_metrics(metrics_dict, step_num=global_step)
                     return
@@ -244,12 +221,12 @@ class Strategy(Logger):
             for k, v in metrics_dict.items():
                 self.logger.add_scalar(tag=k, scalar_value=v, global_step=global_step)
 
-    def _add_graph(self, model) -> None:
-        try:
-            x, _ = next(iter(self.tng_data_loader()))
-            self.logger.add_graph(model, x)
-        except Exception as e:
-            warnings.warn("Failed to save model graph: {}".format(e))
+    # def _add_graph(self, model) -> None:
+    #     try:
+    #         x, _ = next(iter(self.tng_data_loader()))
+    #         self.logger.add_graph(model, x)
+    #     except Exception as e:
+    #         warnings.warn("Failed to save model graph: {}".format(e))
 
     @staticmethod
     def opt_sched_unpack(opt_sched):

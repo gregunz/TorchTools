@@ -13,7 +13,7 @@ class VAEStrategy(AEStrategy):
         kld_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         return mse_loss, kld_loss / x_hat.nelement()
 
-    def tng_step(self, batch, batch_idx, optimizer_idx, epoch_idx) -> dict:
+    def tng_step(self, batch, batch_idx, optimizer_idx, epoch_idx, num_batches: int) -> dict:
         # forward pass
         x, _ = batch  # ignoring label
         output = self.net(x)
@@ -26,7 +26,7 @@ class VAEStrategy(AEStrategy):
                 'training/batch/loss_mse': mse_loss,
                 'training/batch/loss_kld': kld_loss,
             },
-            global_step=self.num_tng_batch * epoch_idx + batch_idx,
+            global_step=num_batches * epoch_idx + batch_idx,
             interval=20,
         )
 
@@ -34,7 +34,7 @@ class VAEStrategy(AEStrategy):
             'loss': loss,
         }
 
-    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
+    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
         x, _ = batch  # ignoring label
         output = self.net(x)
         mse_loss, kld_loss = self.loss(output, x)
@@ -46,7 +46,7 @@ class VAEStrategy(AEStrategy):
                 'validation/batch/loss_mse': mse_loss,
                 'validation/batch/loss_kld': kld_loss,
             },
-            global_step=self.num_val_batch * epoch_idx + batch_idx,
+            global_step=num_batches * epoch_idx + batch_idx,
             interval=10,
         )
 

@@ -2,24 +2,26 @@ from abc import abstractmethod
 from argparse import ArgumentParser
 from pathlib import Path
 
+from torch.utils.data import DataLoader
+
 from . import strategy as S
 
 
 class Executor:
     """
-    Executes strategies, handle multiple gpus, checkpointing, early stopping...
+    Executes strategies, handles the dataloader, multiple gpus, checkpointing, early stopping...
 
     Available implementations:
      - `LightningExecutor` (pytorch-lightning backend)
+     - `SimpleExecutor` (simple minimal for loop)
 
-    Args:
-        exp_name (str): name of the experience
-        model_dir (str): path to model weights directory
-        gpus (list): list of cuda gpus, empty list for cpu.
-        ckpt_period (int):
     """
 
-    def __init__(self, exp_name, model_dir, gpus, ckpt_period):
+    def __init__(self, tng_dataloader: DataLoader, exp_name, model_dir, gpus, ckpt_period, val_dataloader=None,
+                 tst_dataloader=None):
+        self.tng_dataloader = tng_dataloader
+        self.val_dataloader = val_dataloader
+        self.tst_dataloader = tst_dataloader
         self.exp_name = exp_name
         self.model_dir = model_dir
         self.gpus = gpus
@@ -54,6 +56,20 @@ class Executor:
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def train_test(self, strategy: S.Strategy, epochs: int, version=None):
+        """
+        Executes testing procedure given a `Strategy`.
+
+        Args:
+            strategy:
+            epochs:
+            version:
+
+        Returns:
+
+        """
+        raise NotImplementedError
 
     @staticmethod
     def add_argz(parser: ArgumentParser):

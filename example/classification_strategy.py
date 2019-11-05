@@ -19,7 +19,7 @@ class ClassifierStrategy(SimpleStrategy):
     def loss(self, output, target):
         return F.nll_loss(output, target)
 
-    def tng_step(self, batch, batch_idx, optimizer_idx, epoch_idx) -> dict:
+    def tng_step(self, batch, batch_idx, optimizer_idx, epoch_idx, num_batches: int) -> dict:
         # forward pass
         x, y = batch
         y_hat = self.forward(x)
@@ -47,7 +47,7 @@ class ClassifierStrategy(SimpleStrategy):
             'acc': val_acc,
         }
 
-    def val_step(self, batch, batch_idx, optimizer_idx, epoch_idx) -> dict:
+    def val_step(self, batch, batch_idx, optimizer_idx, epoch_idx, num_batches) -> dict:
         outputs = self.evaluate_step(data_batch=batch)
         return outputs
 
@@ -64,7 +64,7 @@ class ClassifierStrategy(SimpleStrategy):
             'val_acc': acc,
         }
 
-    def tst_step(self, batch, batch_idx, optimizer_idx) -> dict:
+    def tst_step(self, batch, batch_idx, optimizer_idx, num_batches) -> dict:
         return self.evaluate_step(data_batch=batch)
 
     def tst_agg_outputs(self, outputs, agg_fn) -> dict:

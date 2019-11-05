@@ -1,24 +1,21 @@
 from argparse import ArgumentParser
-from typing import Union, List
 
 import torch
 from torch import optim, nn
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
 
 from torch_tools.training.strategies import GANStrategy
 from torch_tools.training.util import ImageLogger
 
 
 class DCGANStrategy(GANStrategy, ImageLogger):
-    def __init__(self, tng_dataloader: DataLoader, generator: nn.Module, discriminator: nn.Module, noise_input_size,
-                 lr_gen: float, lr_dis: float, log_dir, output_to_img=None, **kwargs):
+    def __init__(self, generator: nn.Module, discriminator: nn.Module, noise_input_size, lr_gen: float, lr_dis: float,
+                 log_dir, output_to_img=None, **kwargs):
         super().__init__(log_dir=log_dir)
         ImageLogger.__init__(self, output_to_image=output_to_img)
         self.generator = generator
         self.discriminator = discriminator
         self.noise_input_size = noise_input_size
-        self.tng_dl = tng_dataloader
         self.lr_gen = lr_gen
         self.lr_dis = lr_dis
 
@@ -27,16 +24,13 @@ class DCGANStrategy(GANStrategy, ImageLogger):
         self.log_interval = 20
         self.fixed_noise = torch.randn(32, *self.noise_input_size)  # next(iter(self.tng_dl)).size(0)
 
-    def tng_data_loader(self) -> Union[DataLoader, List[DataLoader]]:
-        return self.tng_dl
-
     def generator_optim_schedulers(self):
         return optim.Adam(self.generator.parameters(), lr=self.lr_gen)
 
     def discriminator_optim_schedulers(self):
         return optim.Adam(self.discriminator.parameters(), lr=self.lr_dis)
 
-    def tng_generator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
+    def tng_generator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
         x_real, _ = batch
 
         if epoch_idx == 0 and batch_idx == 0:
@@ -67,7 +61,7 @@ class DCGANStrategy(GANStrategy, ImageLogger):
             metrics_dict={
                 'training/batch/generator/loss': g_loss,
             },
-            global_step=self.num_tng_batch * epoch_idx + batch_idx,
+            global_step=num_batches * epoch_idx + batch_idx,
             interval=20,
         )
 
@@ -79,7 +73,8 @@ class DCGANStrategy(GANStrategy, ImageLogger):
             'g_loss': g_loss,
         }
 
-    def tng_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
+    def tng_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int,
+                               num_batches: int) -> dict:
         x_real, _ = batch
         logits_real = self.discriminator(x_real)
         y_real = torch.ones_like(logits_real)  # real = 1
@@ -97,7 +92,7 @@ class DCGANStrategy(GANStrategy, ImageLogger):
             metrics_dict={
                 'training/batch/discriminator/loss': d_loss,
             },
-            global_step=self.num_tng_batch * epoch_idx + batch_idx,
+            global_step=num_batches * epoch_idx + batch_idx,
             interval=20,
         )
 

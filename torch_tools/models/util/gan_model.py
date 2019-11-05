@@ -16,5 +16,5 @@ class GAN(nn.Module):
         raise NotImplementedError
 
     # fix: https://youtrack.jetbrains.com/issue/PY-37601
-    def __call__(self, *input, **kwargs) -> Any:
-        return super().__call__(*input, **kwargs)
+    def __call__(self, *inputs, **kwargs) -> Any:
+        return super().__call__(*inputs, **kwargs)

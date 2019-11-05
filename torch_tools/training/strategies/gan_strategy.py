@@ -24,22 +24,24 @@ class GANStrategy(Strategy):
     def discriminator_optim_schedulers(self):
         raise NotImplementedError
 
-    def tng_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
+    def tng_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
         self.__check_optimizer_idx(optimizer_idx)
         if optimizer_idx < self._num_gen_opt:
-            return self.tng_generator_step(batch, batch_idx, optimizer_idx, epoch_idx)
+            return self.tng_generator_step(batch, batch_idx, optimizer_idx, epoch_idx, num_batches)
         else:
-            return self.tng_discriminator_step(batch, batch_idx, optimizer_idx - self._num_gen_opt, epoch_idx)
+            return self.tng_discriminator_step(batch, batch_idx, optimizer_idx - self._num_gen_opt, epoch_idx,
+                                               num_batches)
 
     @abstractmethod
-    def tng_generator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_index: int) -> dict:
+    def tng_generator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_index: int, num_batches: int) -> dict:
         raise NotImplementedError
 
     @abstractmethod
-    def tng_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_index: int) -> dict:
+    def tng_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_index: int,
+                               num_batches: int) -> dict:
         raise NotImplementedError
 
-    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int) -> dict:
+    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
         self.__check_optimizer_idx(optimizer_idx)
         if optimizer_idx < self._num_gen_opt:
             return self.val_generator_step(batch, batch_idx, optimizer_idx, epoch_idx)
@@ -52,17 +54,17 @@ class GANStrategy(Strategy):
     def val_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_index: int) -> dict:
         pass
 
-    def tst_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
+    def tst_step(self, batch, batch_idx: int, optimizer_idx: int, num_batches: int) -> dict:
         self.__check_optimizer_idx(optimizer_idx)
         if optimizer_idx < self._num_gen_opt:
-            return self.tst_generator_step(batch, batch_idx, optimizer_idx)
+            return self.tst_generator_step(batch, batch_idx, optimizer_idx, num_batches)
         else:
-            return self.tst_discriminator_step(batch, batch_idx, optimizer_idx - self._num_gen_opt)
+            return self.tst_discriminator_step(batch, batch_idx, optimizer_idx - self._num_gen_opt, num_batches)
 
-    def tst_generator_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
+    def tst_generator_step(self, batch, batch_idx: int, optimizer_idx: int, num_batches: int) -> dict:
         pass
 
-    def tst_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int) -> dict:
+    def tst_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int, num_batches: int) -> dict:
         pass
 
     def __check_optimizer_idx(self, optimizer_idx):
