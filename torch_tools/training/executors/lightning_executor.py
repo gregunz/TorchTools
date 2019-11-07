@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
 
+from torch_tools.training import strategy as S
 from .util import int_to_flags
 from .. import Strategy, Executor
 from ..util import AggFn
@@ -74,6 +75,10 @@ class LightningExecutor(Executor):
             trainer.test(module)
         except KeyboardInterrupt:
             print(f'\nTesting manually stopped...')
+
+    def train_test(self, strategy: S.Strategy, epochs: int, version=None):
+        self.train(strategy=strategy, epochs=epochs, version=version)
+        self.test()
 
     def _get_logger(self, strategy: Strategy, version: int = None, add_graph=True):
         logger = TestTubeLogger(

@@ -171,7 +171,8 @@ class Strategy(Logger):
     def logger(self, logger):
         self._logger = logger
 
-    def set_default_logger(self, version: int = None):
+    def set_default_logger(self, exp_name: str = '', version: int = None):
+        self.log_dir /= exp_name
         if version is None:
             i = 0
             log_dir = Path(self.log_dir) / f'version_{i}'
