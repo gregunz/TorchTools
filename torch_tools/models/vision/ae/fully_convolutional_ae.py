@@ -3,6 +3,9 @@ from argparse import ArgumentParser
 from torch_tools.models.util import AE
 from torch_tools.models.vision.util import DCEncoder, DCDecoder
 
+_lc = 128
+_nf = 64
+_np = 3
 
 class FCAE(AE):
     """
@@ -39,11 +42,7 @@ class FCAE(AE):
 
     @staticmethod
     def add_argz(parser: ArgumentParser):
-        _lc = 128
         parser.add_argument('--latent_channels', type=int, default=_lc, help=f'latent channels (default: {_lc})')
-        _nf = 64
+        parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks (default: {_np})')
         parser.add_argument('--n_filters', type=int, default=_nf,
                             help=f'num of filters for the 1st pyramid block (default: {_nf})')
-        _np = 3
-        parser.add_argument('--n_pyramid', type=int, default=_np,
-                            help=f'number of pyramid blocks (default: {_np})')

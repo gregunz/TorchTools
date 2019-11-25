@@ -8,10 +8,8 @@ class Concat(nn.Module):
         self.dim = dim
         self.tensors = tuple(tensor)
 
-    def forward(self, x) -> torch.Tensor:
-        if isinstance(x, torch.Tensor):
-            assert self.tensors is not None, 'concat single tensor is meaningless'
-            x = (x,)
+    def forward(self, *args) -> torch.Tensor:
+        assert len(args) != 0 or self.tensors is not None, 'concat single tensor is meaningless'
         if self.tensors is not None:
-            x += self.tensors
-        return torch.cat(x, dim=self.dim)
+            args += self.tensors
+        return torch.cat(args, dim=self.dim)

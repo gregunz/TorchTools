@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 from functools import reduce
 from typing import Any
 
@@ -6,11 +6,24 @@ import torch
 from torch import nn
 
 
-class AE(nn.Module):
+class Encoder(nn.Module, metaclass=ABCMeta):
     @abstractmethod
     def encode(self, *args):
         raise NotImplementedError
 
+    @abstractmethod
+    def latent_size(self, *args):
+        raise NotImplementedError
+
+    def latent_dim(self, *args):
+        return reduce(lambda x, y: x * y, self.latent_size(*args))
+
+    # fix: https://youtrack.jetbrains.com/issue/PY-37601
+    def __call__(self, *inputs, **kwargs) -> Any:
+        return super().__call__(*inputs, **kwargs)
+
+
+class Decoder(nn.Module, metaclass=ABCMeta):
     @abstractmethod
     def decode(self, *args):
         raise NotImplementedError
@@ -22,6 +35,12 @@ class AE(nn.Module):
     def latent_dim(self, *args):
         return reduce(lambda x, y: x * y, self.latent_size(*args))
 
+    # fix: https://youtrack.jetbrains.com/issue/PY-37601
+    def __call__(self, *inputs, **kwargs) -> Any:
+        return super().__call__(*inputs, **kwargs)
+
+
+class AE(Encoder, Decoder, metaclass=ABCMeta):
     def reparameterize(self, mu, logvar):
         """
         Reparameterize trick for Variational Auto Encoders

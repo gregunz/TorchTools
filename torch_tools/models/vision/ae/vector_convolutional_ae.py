@@ -5,6 +5,10 @@ from torch import nn
 from torch_tools.models.util import Flatten, UnFlatten, FISModel, AE
 from torch_tools.models.vision.util import DCDecoder, DCEncoder
 
+_ld = 100
+_nf = 64
+_np = None
+
 
 class VectorCAE(AE, FISModel):
     """
@@ -30,7 +34,7 @@ class VectorCAE(AE, FISModel):
             **kwargs: not used (practical when feeding **vars(args) in constructor)
     """
 
-    def __init__(self, input_size, latent_dim=100, n_filters=64, n_pyramid=None, **kwargs):
+    def __init__(self, input_size, latent_dim=_ld, n_filters=_nf, n_pyramid=_np, **kwargs):
         super().__init__(input_size)
         self.latent_channels = latent_dim
         if n_pyramid is None:
@@ -78,18 +82,10 @@ class VectorCAE(AE, FISModel):
 
     @staticmethod
     def add_argz(parser):
-        default_latent_dim, default_latent_size_opt = 100, (50, 100)
-        parser.opt_list('--latent_dim', type=int, default=default_latent_dim, options=default_latent_size_opt,
-                        tunable=True, help=f'latent dim (default: {default_latent_dim})')
-
-        default_n_filters, default_n_filters_opt = 32, (32, 64)
-        parser.opt_list('--n_filters', type=int, default=default_n_filters, options=default_n_filters_opt,
-                        tunable=True,
-                        help=f'num of filters for the 1st pyramid block (default: {default_n_filters})')
-
-        default_n_pyramid = None
-        parser.add_argument('--n_pyramid', type=int, default=default_n_pyramid,
-                            help=f'number of pyramid blocks (default: {default_n_pyramid})')
+        parser.add_argument('--latent_dim', type=int, default=_ld, help=f'latent dim (default: {_ld})')
+        parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks (default: {_np})')
+        parser.add_argument('--n_filters', type=int, default=_nf,
+                            help=f'num of filters for the 1st pyramid block (default: {_nf})')
 
     def _check_input_size(self, n_pyramid, do_assert=False) -> bool:
         mult = 2 ** (1 + n_pyramid)  # minimum multiple for image width and height
