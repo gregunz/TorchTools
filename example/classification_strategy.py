@@ -11,21 +11,16 @@ class ClassifierStrategy(SimpleStrategy):
     It applies a LogSoftmax on the logits and optimizes the Negative Log Likelihood Loss.
     It also logs useful metrics.
     """
-
-    def forward(self, x):
-        logits = self.net(x)
-        return F.log_softmax(logits, dim=1)
-
     def loss(self, output, target):
-        return F.nll_loss(output, target)
+        return F.nll_loss(F.log_softmax(output, dim=1), target)
 
     def tng_step(self, batch, batch_idx, optimizer_idx, epoch_idx, num_batches: int) -> dict:
         # forward pass
         x, y = batch
-        y_hat = self.forward(x)
-        labels_hat = torch.argmax(y_hat, dim=1)
+        logits = self.net(x)
+        labels_hat = torch.argmax(logits, dim=1)
 
-        loss = self.loss(y_hat, y)
+        loss = self.loss(logits, y)
         acc = torch.sum(y == labels_hat).float() / y.size(0)
         return {
             'loss': loss,
@@ -34,20 +29,20 @@ class ClassifierStrategy(SimpleStrategy):
 
     def evaluate_step(self, data_batch):
         x, y = data_batch
-        y_hat = self.forward(x)
-        loss_val = self.loss(y_hat, y)
+        logits = self.net(x)
+        loss_val = self.loss(logits, y)
 
         # acc
-        labels_hat = torch.argmax(y_hat, dim=1)
+        labels_hat = torch.argmax(logits, dim=1)
         val_acc = torch.sum(y == labels_hat).float() / y.size(0)
         return {
-            'gt': y,
-            'pred': y_hat.exp(),
+            # 'gt': y,
+            # 'logits': logits,
             'loss': loss_val,
             'acc': val_acc,
         }
 
-    def val_step(self, batch, batch_idx, optimizer_idx, epoch_idx, num_batches) -> dict:
+    def val_step(self, batch, batch_idx, epoch_idx, num_batches) -> dict:
         outputs = self.evaluate_step(data_batch=batch)
         return outputs
 
@@ -64,7 +59,7 @@ class ClassifierStrategy(SimpleStrategy):
             'val_acc': acc,
         }
 
-    def tst_step(self, batch, batch_idx, optimizer_idx, num_batches) -> dict:
+    def tst_step(self, batch, batch_idx, num_batches) -> dict:
         return self.evaluate_step(data_batch=batch)
 
     def tst_agg_outputs(self, outputs, agg_fn) -> dict:
