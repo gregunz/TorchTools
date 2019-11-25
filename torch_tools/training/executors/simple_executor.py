@@ -1,25 +1,37 @@
-import warnings
 from collections import Sequence
+from typing import List
 
 import torch
 from tqdm.auto import tqdm
 
+from torch_tools.training import Callback
+from torch_tools.training.callbacks import CheckpointCallback
 from torch_tools.training.executors.util import int_to_flags
 from torch_tools.training.util import AggFn
 from .. import Strategy, Executor
 
 
 class SimpleExecutor(Executor):
-    def __init__(self, tng_dataloader, exp_name, model_dir, gpus: int, ckpt_period: int, val_dataloader=None,
-                 tst_dataloader=None, **kwargs):
+    def __init__(self, tng_dataloader, exp_name, gpus: int, val_dataloader=None,
+                 tst_dataloader=None, callbacks: List[Callback] = None, **kwargs):
+        if callbacks is None:
+            callbacks = []
+        n_best_or_period = kwargs.get('n_best_or_period')
+        if n_best_or_period is not None and n_best_or_period > 0:
+            ckpt = CheckpointCallback(
+                save_dir=kwargs.get('model_dir'),
+                n_best_or_period=n_best_or_period,
+                metric_name=kwargs.get('metric_name'),
+                metric_cmp='max'
+            )
+            callbacks += [ckpt]
         super().__init__(
             tng_dataloader=tng_dataloader,
             val_dataloader=val_dataloader,
             tst_dataloader=tst_dataloader,
             exp_name=exp_name,
-            model_dir=model_dir,
             gpus=int_to_flags(gpus) if isinstance(gpus, int) else gpus,
-            ckpt_period=ckpt_period,
+            callbacks=callbacks,
         )
         assert len(self.gpus) <= 1, 'not handling multiple GPUs yet'
         self.device = torch.device('cpu' if len(self.gpus) == 0 else f'cuda:{self.gpus[0]}')
@@ -39,21 +51,26 @@ class SimpleExecutor(Executor):
         self._test(strategy=strategy, version=version)
 
     def _init(self, strategy: Strategy, version: int, hparams):
-        strategy.set_default_logger(exp_name=self.exp_name, version=version)
+        self.version = strategy.set_default_logger(exp_name=self.exp_name, version=version)
         strategy.log_hyperparams(hparams)
         self._strat_to_device(strategy)
+        for cb in self.callbacks:
+            cb.set(strategy, self)
 
     def _train(self, strategy: Strategy, epochs: int, version: int):
         try:
             do_validation = self.val_dataloader is not None
-            optimizers, schedulers = strategy.opt_sched_unpack(strategy.optim_schedulers())
 
             for epoch_idx in tqdm(list(range(epochs)), desc=f'Train Epochs'):
+
+                # CALLBACKS epoch_begin #
+                for cb in self.callbacks:
+                    cb.on_epoch_begin(epoch_idx)
 
                 # TRAINING #
                 self._set_train_mode(strategy)  # set model.train()
                 for batch_idx, batch in self._batch_iter(self.tng_dataloader):
-                    for optimizer_idx, optimizer in enumerate(optimizers):
+                    for optimizer_idx, optimizer in enumerate(strategy.optimizers):
                         optimizer.zero_grad()
                         output = strategy.tng_step(
                             batch=batch,
@@ -67,12 +84,13 @@ class SimpleExecutor(Executor):
                         optimizer.step()
 
                 # VALIDATING #
+                val_outputs = None
                 if do_validation:
                     with torch.no_grad():
                         self._set_eval_mode(strategy)  # set model.eval()
                         outputs = []
                         for batch_idx, batch in self._batch_iter(self.val_dataloader):
-                            for optimizer_idx, optimizer in enumerate(optimizers):
+                            for optimizer_idx, optimizer in enumerate(strategy.optimizers):
                                 output = strategy.tng_step(
                                     batch=batch,
                                     batch_idx=batch_idx,
@@ -81,59 +99,55 @@ class SimpleExecutor(Executor):
                                     num_batches=len(self.val_dataloader),
                                 )
                                 outputs.append(output)
-                        strategy.val_agg_outputs(outputs, AggFn(outputs), epoch_idx)
+                        val_outputs = strategy.val_agg_outputs(outputs, AggFn(outputs), epoch_idx)
 
                 # SCHEDULERS #
-                for sched in schedulers:
+                for sched in strategy.schedulers:
                     sched.step()
 
                 # LOGGING #
-                strategy.logger.flush()
+                strategy.logger.flush()  # todo: one should check if it slows down the training
 
-                # CKPT #
-                if self.ckpt_period > 0 and (epoch_idx + 1) % self.ckpt_period == 0:
-                    # todo: do checkpointing here
-                    # self.model_dir
-                    warnings.warn('Checkpointing not yet implemented')
+                # CALLBACKS epoch_end #
+                for cb in self.callbacks:
+                    cb.on_epoch_end(epoch_idx, val_outputs)
+
         except KeyboardInterrupt:
-            print('Manual stop of training')
+            print('Training stopped manually.')
 
     def _test(self, strategy: Strategy, version=None):
         try:
             with torch.no_grad():
-                optimizers, _ = strategy.opt_sched_unpack(strategy.optim_schedulers())
                 outputs = []
                 self._set_eval_mode(strategy)  # set model.eval()
 
                 for batch_idx, batch in self._batch_iter(tqdm(self.tst_dataloader, desc='Test Batches')):
-                    for optimizer_idx, optimizer in enumerate(optimizers):
-                        output = strategy.tst_step(
-                            batch=batch,
-                            batch_idx=batch_idx,
-                            optimizer_idx=optimizer_idx,
-                            num_batches=len(self.tst_dataloader),
-                        )
-                        outputs.append(output)
+                    output = strategy.tst_step(
+                        batch=batch,
+                        batch_idx=batch_idx,
+                        num_batches=len(self.tst_dataloader),
+                    )
+                    outputs.append(output)
                 strategy.tst_agg_outputs(outputs, AggFn(outputs))
         except KeyboardInterrupt:
-            print('Manual stop of testing')
+            print('Testing stopped manually.')
 
     def _set_train_mode(self, strategy: Strategy):
         mode_str = 'train'
         if self.mode != mode_str:
             self.mode = mode_str
-            for m in strategy.modules:
+            for _, m in strategy.modules:
                 m.train()
 
     def _set_eval_mode(self, strategy: Strategy):
         mode_str = 'eval'
         if self.mode != mode_str:
             self.mode = mode_str
-            for m in strategy.modules:
+            for _, m in strategy.modules:
                 m.eval()
 
     def _strat_to_device(self, strategy: Strategy):
-        for m in strategy.modules:
+        for _, m in strategy.modules:
             m.to(self.device)
 
     def _batch_iter(self, dataloader):

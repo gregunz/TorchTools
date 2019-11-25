@@ -16,5 +16,6 @@ Design a classification `Strategy` by defining
 ...
 
 """
+from torch_tools.training.callback import Callback
 from torch_tools.training.executor import Executor
 from torch_tools.training.strategy import Strategy

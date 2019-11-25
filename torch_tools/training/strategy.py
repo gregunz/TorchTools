@@ -29,11 +29,26 @@ class Strategy(Logger):
         self.log_dir = log_dir
         self._logger = None
         self._log_metrics_cache = dict()
+        self._optimizers = self._schedulers = None
+
+    def _init_opt_sched(self):
+        if self._optimizers is None or self._schedulers is None:
+            self._optimizers, self._schedulers = self.opt_sched_unpack(self.optim_schedulers())
+
+    @property
+    def optimizers(self) -> List[Optimizer]:
+        self._init_opt_sched()
+        return self._optimizers
+
+    @property
+    def schedulers(self) -> List[_LRScheduler]:
+        self._init_opt_sched()
+        return self._schedulers
 
     @abstractmethod
     def optim_schedulers(self) -> OptimOrSched:
         """
-        Create the optimizers and schedulers
+        Creates the optimizers and schedulers
 
         Returns: [optimizer, ...], [scheduler, ...]
         """
@@ -59,7 +74,7 @@ class Strategy(Logger):
         raise NotImplementedError
 
     # @abstractmethod
-    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
+    def val_step(self, batch, batch_idx: int, epoch_idx: int, num_batches: int) -> dict:
         """
         Describe the validation step. It should return a dict with at least the loss.
         The dicts will be aggregated over steps and provided as list to `val_agg_outputs`.
@@ -68,7 +83,6 @@ class Strategy(Logger):
         Args:
             batch:
             batch_idx:
-            optimizer_idx:
             epoch_idx:
             num_batches:
 
@@ -98,7 +112,7 @@ class Strategy(Logger):
         pass  # raise NotImplementedError
 
     # @abstractmethod
-    def tst_step(self, batch, batch_idx: int, optimizer_idx: int, num_batches: int) -> dict:
+    def tst_step(self, batch, batch_idx: int, num_batches: int) -> dict:
         """
         Describe the testing step. It should return a dict with at least the loss.
         The dicts will be aggregated over steps and provided as list to `tst_agg_outputs`.
@@ -107,7 +121,6 @@ class Strategy(Logger):
             batch:
             batch_idx:
             num_batches:
-            optimizer_idx:
 
         Returns (dict): {
             'loss': test_loss,
@@ -142,13 +155,35 @@ class Strategy(Logger):
         """
         pass
 
+    def load(self, path: Path):
+        state_dicts = torch.load(path)
+
+        for opt, state_dict in zip(self.optimizers, state_dicts['optimizers']):
+            opt.load_state_dict(state_dict)
+
+        for sched, state_dict in zip(self.schedulers, state_dicts['schedulers']):
+            sched.load_state_dict(state_dict)
+
+        for name in set(state_dicts.keys()) - {'optimizers', 'schedulers'}:
+            module = getattr(self, name)
+            module.load_state_dict(state_dicts[name])
+
+    def save(self, path: Path):
+        state_dicts = {name: module.state_dict() for name, module in self.modules}
+        state_dicts.update({
+            'optimizers': [opt.state_dict() for opt in self.optimizers],
+            'schedulers': [sched.state_dict() for sched in self.schedulers],
+        })
+        torch.save(state_dicts, path)
+        print(f'SAVED: {path}')
+
     @staticmethod
     def add_argz(parser: ArgumentParser) -> None:
         pass
 
     @property
-    def modules(self) -> List[nn.Module]:
-        return [module for module in self.__dict__.values() if isinstance(module, nn.Module)]
+    def modules(self) -> List[Tuple[str, nn.Module]]:
+        return [(name, module) for name, module in self.__dict__.items() if isinstance(module, nn.Module)]
 
     @property
     def logger(self) -> SummaryWriter:
@@ -174,14 +209,15 @@ class Strategy(Logger):
     def set_default_logger(self, exp_name: str = '', version: int = None):
         self.log_dir /= exp_name
         if version is None:
-            i = 0
-            log_dir = Path(self.log_dir) / f'version_{i}'
+            version = 0
+            log_dir = Path(self.log_dir) / f'version_{version}'
             while log_dir.exists():
-                i += 1
-                log_dir = Path(self.log_dir) / f'version_{i}'
+                version += 1
+                log_dir = Path(self.log_dir) / f'version_{version}'
         else:
             log_dir = Path(self.log_dir) / f'version_{version}'
         self.logger = SummaryWriter(log_dir / 'tf')
+        return version
 
     def log_hyperparams(self, hparams):
         params = f'''##### Hyperparameters\n'''

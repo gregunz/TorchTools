@@ -1,9 +1,11 @@
 from abc import abstractmethod
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import List
 
 from torch.utils.data import DataLoader
 
+from . import callback as C
 from . import strategy as S
 
 
@@ -17,15 +19,17 @@ class Executor:
 
     """
 
-    def __init__(self, tng_dataloader: DataLoader, exp_name, model_dir, gpus, ckpt_period, val_dataloader=None,
-                 tst_dataloader=None):
+    def __init__(self, tng_dataloader: DataLoader, exp_name, gpus, val_dataloader=None,
+                 tst_dataloader=None, callbacks: List[C.Callback] = None):
         self.tng_dataloader = tng_dataloader
         self.val_dataloader = val_dataloader
         self.tst_dataloader = tst_dataloader
         self.exp_name = exp_name
-        self.model_dir = model_dir
         self.gpus = gpus
-        self.ckpt_period = ckpt_period
+        self.callbacks = callbacks
+        if self.callbacks is None:
+            self.callbacks: List[C.Callback] = []
+        self.version = None
 
     @abstractmethod
     def train(self, strategy: S.Strategy, epochs: int, version=None):
@@ -97,6 +101,7 @@ class Executor:
         parser.add_argument('--gpus', type=int, default=default_gpus,
                             help=f'which cuda device is used in binary representation '
                                  f'(i.e. 5 = 0101 = cuda:0 and cuda:2) (default: {default_gpus})')
-        default_ckpt_period = 5
-        parser.add_argument('--ckpt_period', type=int, default=default_ckpt_period,
-                            help=f'save model every ckpt_period epoch')
+        default_n_best_or_period = 1
+        parser.add_argument('--n_best_or_period', type=int, default=default_n_best_or_period,
+                            help=f'save model every x epoch or keep the best x model weights if a metric name is given')
+        parser.add_argument('--metric_name', type=str, default=None, help=f'metric name to use for checkpointing')

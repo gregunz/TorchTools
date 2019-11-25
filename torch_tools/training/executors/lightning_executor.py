@@ -156,7 +156,8 @@ class _LightningModule(pl.LightningModule):
         return self.executor.tst_dataloader
 
     def training_step(self, *args):
-        args = _args_step(args)
+        if len(args) == 2:  # handling the case with multiple optimizer (by forcing optimizer_idx to be defined)
+            args += (0,)
         outputs = self.strat.tng_step(*args, epoch_idx=self.current_epoch,
                                       num_batches=len(self.executor.tng_dataloader))
         assert 'loss' in outputs, 'training step should return a dict containing the loss'
@@ -168,7 +169,6 @@ class _LightningModule(pl.LightningModule):
         }
 
     def validation_step(self, *args):
-        args = _args_step(args)
         return self.strat.val_step(*args, epoch_idx=self.current_epoch, num_batches=len(self.executor.val_dataloader))
 
     def validation_end(self, outputs):
@@ -179,7 +179,6 @@ class _LightningModule(pl.LightningModule):
         }
 
     def test_step(self, *args):
-        args = _args_step(args)
         return self.strat.tst_step(*args, num_batches=len(self.executor.tst_dataloader))
 
     def test_end(self, outputs):
@@ -207,20 +206,7 @@ class _LightningModule(pl.LightningModule):
                 delattr(module.__class__, 'test_end')
             setattr(module.__class__, 'did_delete', True)
 
-        for i, m in enumerate(strategy.modules):
-            setattr(module, f'module_{i:04d}', m)
+        for n, m in strategy.modules:
+            setattr(module, n, m)
 
         return module
-
-
-def _args_step(args):
-    """
-    Handling the case with multiple optimizer (by forcing optimizer_idx to be defined)
-
-    :param args:
-    :return:
-    """
-    if len(args) == 2:
-        args += (0,)
-    assert len(args) == 3
-    return args
