@@ -40,7 +40,7 @@ class AEStrategy(SimpleStrategy, ImageLogger):
             'loss': loss,
         }
 
-    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
+    def val_step(self, batch, batch_idx: int, epoch_idx: int, num_batches: int) -> dict:
         # forward pass
         x, _ = batch  # ignoring label
         x_hat = self.net(x)

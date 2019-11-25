@@ -25,10 +25,10 @@ class DCGANStrategy(GANStrategy, ImageLogger):
         self.fixed_noise = torch.randn(32, *self.noise_input_size)  # next(iter(self.tng_dl)).size(0)
 
     def generator_optim_schedulers(self):
-        return optim.Adam(self.generator.parameters(), lr=self.lr_gen)
+        return optim.Adam(self.generator.parameters(), lr=self.lr_gen, betas=(0.5, 0.999))
 
     def discriminator_optim_schedulers(self):
-        return optim.Adam(self.discriminator.parameters(), lr=self.lr_dis)
+        return optim.Adam(self.discriminator.parameters(), lr=self.lr_dis, betas=(0.5, 0.999))
 
     def tng_generator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
         x_real, _ = batch

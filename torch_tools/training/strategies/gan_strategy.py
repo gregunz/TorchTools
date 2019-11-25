@@ -41,32 +41,6 @@ class GANStrategy(Strategy):
                                num_batches: int) -> dict:
         raise NotImplementedError
 
-    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
-        self.__check_optimizer_idx(optimizer_idx)
-        if optimizer_idx < self._num_gen_opt:
-            return self.val_generator_step(batch, batch_idx, optimizer_idx, epoch_idx)
-        else:
-            return self.val_discriminator_step(batch, batch_idx, optimizer_idx - self._num_gen_opt, epoch_idx)
-
-    def val_generator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_index: int) -> dict:
-        pass
-
-    def val_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_index: int) -> dict:
-        pass
-
-    def tst_step(self, batch, batch_idx: int, optimizer_idx: int, num_batches: int) -> dict:
-        self.__check_optimizer_idx(optimizer_idx)
-        if optimizer_idx < self._num_gen_opt:
-            return self.tst_generator_step(batch, batch_idx, optimizer_idx, num_batches)
-        else:
-            return self.tst_discriminator_step(batch, batch_idx, optimizer_idx - self._num_gen_opt, num_batches)
-
-    def tst_generator_step(self, batch, batch_idx: int, optimizer_idx: int, num_batches: int) -> dict:
-        pass
-
-    def tst_discriminator_step(self, batch, batch_idx: int, optimizer_idx: int, num_batches: int) -> dict:
-        pass
-
     def __check_optimizer_idx(self, optimizer_idx):
         if optimizer_idx >= self._num_gen_opt + self._num_dis_opt:
             raise Exception(f'Unexpected optimizer index: {optimizer_idx}, but only received {self._num_gen_opt} '

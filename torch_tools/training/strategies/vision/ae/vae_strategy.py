@@ -11,7 +11,8 @@ class VAEStrategy(AEStrategy):
         x_hat, mu, logvar = output
         mse_loss = F.mse_loss(x_hat, target)
         kld_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        return mse_loss, kld_loss / x_hat.nelement()
+        kld_loss /= x_hat.nelement()  # either we divide the kl divergence or we take mse loss with 'sum' reduction
+        return mse_loss, kld_loss
 
     def tng_step(self, batch, batch_idx, optimizer_idx, epoch_idx, num_batches: int) -> dict:
         # forward pass
@@ -34,7 +35,7 @@ class VAEStrategy(AEStrategy):
             'loss': loss,
         }
 
-    def val_step(self, batch, batch_idx: int, optimizer_idx: int, epoch_idx: int, num_batches: int) -> dict:
+    def val_step(self, batch, batch_idx: int, epoch_idx: int, num_batches: int) -> dict:
         x, _ = batch  # ignoring label
         output = self.net(x)
         mse_loss, kld_loss = self.loss(output, x)
