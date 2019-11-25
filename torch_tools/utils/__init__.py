@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from .cnn_out_size import cnn_out_size
+from .load_dict import smart_load_state_dict
 from .seed import set_seed
 from .tensorboard_logs import TensorboardLogs
 
