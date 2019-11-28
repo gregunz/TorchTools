@@ -19,14 +19,11 @@ class LightningExecutor(Executor):
     It handles multiple gpus, checkpointing, early stopping,..
     """
 
-    def __init__(self, tng_dataloader, exp_name, model_dir, gpus: int, ckpt_period: int, val_dataloader=None,
-                 tst_dataloader=None, **kwargs):
+    def __init__(self, tng_dataloader, exp_name, gpus: int, val_dataloader=None, tst_dataloader=None, **kwargs):
         super().__init__(
             tng_dataloader=tng_dataloader,
             exp_name=exp_name,
-            model_dir=model_dir,
             gpus=int_to_flags(gpus),
-            ckpt_period=ckpt_period,
             val_dataloader=val_dataloader,
             tst_dataloader=tst_dataloader,
         )
@@ -100,14 +97,15 @@ class LightningExecutor(Executor):
         use_amp = None  # gpus is not None
         d_backend = None if len(self.gpus) <= 1 else 'dp'
 
-        ckpt_path = Path(self.model_dir) / self.exp_name / f'version_{logger.experiment.version}'
         checkpoint_callback = None
-        if self.ckpt_period > 0:
+        n_best_or_period = self._kwargs.get('n_best_or_period')
+        if n_best_or_period is not None and n_best_or_period > 0:
+            ckpt_path = Path(self._kwargs.get('model_dir')) / self.exp_name / f'version_{logger.experiment.version}'
             checkpoint_callback = ModelCheckpoint(
                 filepath=ckpt_path,
                 prefix=f'weights',
                 verbose=True,
-                period=self.ckpt_period,
+                period=n_best_or_period,
             )
 
         return pl.Trainer(
