@@ -11,7 +11,7 @@ def compute_roc_auc(outputs, targets):
     targets = targets.squeeze()
     assert outputs.dim() == 1
     assert targets.dim() == 1
-    assert outputs.size() == targets.size()
+    assert outputs.size() == targets.size(), f'{outputs.size()} != {targets.size()}'
     target_values = targets.unique()
     assert target_values.size(0) == 2
     assert set(target_values.tolist()) == {0, 1}

@@ -113,6 +113,7 @@ class SimpleExecutor(Executor):
                     cb.on_epoch_end(epoch_idx, val_outputs)
 
         except KeyboardInterrupt:
+            strategy.logger.flush()
             print('Training stopped manually.')
 
     def _test(self, strategy: Strategy, version=None):
