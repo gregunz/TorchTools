@@ -13,7 +13,7 @@ class Sample(Dataset):
         if num_samples is None:
             num_samples = n
 
-        self.all_indices = list(range(n))
+        self.all_indices = list(range(num_samples))
 
         if random_sampling:
             random.shuffle(self.all_indices)
