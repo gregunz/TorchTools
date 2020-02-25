@@ -40,12 +40,13 @@ class RandomSampler(Sampler):
         if self.replacement:
             return iter(torch.randint(high=n, size=(self.num_samples,), dtype=torch.int64).tolist())
 
+        if len(self.all_indices) < self.num_samples:
+            self.all_indices += torch.randperm(n).tolist()
+
+        iterator = iter(self.all_indices[:self.num_samples])
         self.all_indices = self.all_indices[self.num_samples:]
 
-        if len(self.all_indices) == 0:
-            self.all_indices = torch.randperm(n).tolist()
-
-        return iter(self.all_indices[:self.num_samples])
+        return iterator
 
     def __len__(self):
         return self.num_samples

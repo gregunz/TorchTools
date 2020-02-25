@@ -77,31 +77,17 @@ class Executor:
 
     @staticmethod
     def add_argz(parser: ArgumentParser):
-        default_epochs = 10
-        parser.add_argument('--epochs', type=int, default=default_epochs,
-                            help=f'number of epochs to train (default: {default_epochs})')
-
-        default_log_dir = Path('/data/logs/')
-        parser.add_argument("--log_dir", type=str, default=default_log_dir,
-                            help=f'directory for log outputs (tensorboard and more) (default: {default_log_dir})')
-
-        default_model_dir = Path('/data/models/')
-        parser.add_argument('--model_dir', type=str, default=default_model_dir,
-                            help=f'directory for model weights (default: {default_model_dir})')
-
-        default_version = None  # when None, it creates a new one
-        parser.add_argument('--version', type=int, default=default_version,
-                            help=f'specify version continue its training (default: {default_version})')
-
-        default_seed = None  # this means it will be set by the clock (random)
-        parser.add_argument('--manual_seed', type=int, default=default_seed,
-                            help=f'set the seed manually for more reproducibility (default: {default_seed})')
+        parser.add_argument('--epochs', type=int, default=10, help=f'number of epochs to train')
+        parser.add_argument("--log_dir", type=str, default=Path('/data/logs/'),
+                            help=f'directory for log outputs (tensorboard and more)')
+        parser.add_argument('--model_dir', type=str, default=Path('/data/models/'), help=f'directory for model weights')
+        parser.add_argument('--version', type=int, default=None, help=f'specify version continue its training')
+        # this means the seed will be set by the clock (random)
+        parser.add_argument('--manual_seed', type=int, default=None,
+                            help=f'set the seed manually for more reproducibility')
         # represents which gpu is used in binary representation (e.g, 0 = cpu, 5 = 1010 = gpu0 and gpu2)
-        default_gpus = 1
-        parser.add_argument('--gpus', type=int, default=default_gpus,
-                            help=f'which cuda device is used in binary representation '
-                                 f'(i.e. 5 = 0101 = cuda:0 and cuda:2) (default: {default_gpus})')
-        default_n_best_or_period = 1
-        parser.add_argument('--n_best_or_period', type=int, default=default_n_best_or_period,
+        parser.add_argument('--gpus', type=int, default=1, help=f'which cuda device is used in binary representation '
+                                                                f'(i.e. 5 = 1010 = cuda:0 and cuda:2)')
+        parser.add_argument('--n_best_or_period', type=int, default=1,
                             help=f'save model every x epoch or keep the best x model weights if a metric name is given')
         parser.add_argument('--metric_name', type=str, default=None, help=f'metric name to use for checkpointing')

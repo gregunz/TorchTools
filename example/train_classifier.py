@@ -13,7 +13,6 @@ from torch_tools.training.executors import SimpleExecutor as Executor
 
 
 def main(**kwargs):
-
     ########################
     # [DATA] some datasets #
     ########################

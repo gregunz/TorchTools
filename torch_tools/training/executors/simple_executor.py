@@ -36,12 +36,16 @@ class SimpleExecutor(Executor):
         assert len(self.gpus) <= 1, 'not handling multiple GPUs yet'
         self.device = torch.device('cpu' if len(self.gpus) == 0 else f'cuda:{self.gpus[0]}')
         self.mode = None
+        self.latest_strat = None
 
     def train(self, strategy: Strategy, epochs: int, version=None, **kwargs):
         self._init(strategy=strategy, version=version, hparams=kwargs)
         self._train(strategy=strategy, epochs=epochs, version=version)
+        self.latest_strat = strategy
 
-    def test(self, strategy: Strategy, version=None, **kwargs):
+    def test(self, strategy: Strategy = None, version=None, **kwargs):
+        if strategy is None:
+            strategy = self.latest_strat
         self._init(strategy=strategy, version=version, hparams=kwargs)
         self._test(strategy=strategy, version=version)
 
@@ -88,18 +92,16 @@ class SimpleExecutor(Executor):
                 if do_validation:
                     with torch.no_grad():
                         self._set_eval_mode(strategy)  # set model.eval()
-                        outputs = []
+                        val_outputs = []
                         for batch_idx, batch in self._batch_iter(self.val_dataloader):
-                            for optimizer_idx, optimizer in enumerate(strategy.optimizers):
-                                output = strategy.tng_step(
-                                    batch=batch,
-                                    batch_idx=batch_idx,
-                                    optimizer_idx=optimizer_idx,
-                                    epoch_idx=epoch_idx,
-                                    num_batches=len(self.val_dataloader),
-                                )
-                                outputs.append(output)
-                        val_outputs = strategy.val_agg_outputs(outputs, AggFn(outputs), epoch_idx)
+                            val_output = strategy.val_step(
+                                batch=batch,
+                                batch_idx=batch_idx,
+                                epoch_idx=epoch_idx,
+                                num_batches=len(self.val_dataloader),
+                            )
+                            val_outputs.append(val_output)
+                        val_outputs = strategy.val_agg_outputs(val_outputs, AggFn(val_outputs), epoch_idx)
 
                 # SCHEDULERS #
                 for sched in strategy.schedulers:

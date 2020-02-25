@@ -12,7 +12,7 @@ class CheckpointCallback(Callback):
     def __init__(self, save_dir: Union[Path, str], n_best_or_period: int = 1, metric_name: str = None,
                  metric_cmp='max'):
         if save_dir is None:
-            raise ValueError('Cannot do checkpointing when the save_dir is None')
+            raise ValueError('Cannot do check-pointing when the save_dir is None')
         if metric_cmp not in ['min', 'max']:
             raise ValueError(f'Unknown metric comparison (got {metric_cmp})')
         if n_best_or_period < 1:

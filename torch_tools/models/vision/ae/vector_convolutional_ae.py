@@ -82,10 +82,9 @@ class VectorCAE(AE, FISModel):
 
     @staticmethod
     def add_argz(parser):
-        parser.add_argument('--latent_dim', type=int, default=_ld, help=f'latent dim (default: {_ld})')
-        parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks (default: {_np})')
-        parser.add_argument('--n_filters', type=int, default=_nf,
-                            help=f'num of filters for the 1st pyramid block (default: {_nf})')
+        parser.add_argument('--latent_dim', type=int, default=_ld, help=f'latent dim')
+        parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks')
+        parser.add_argument('--n_filters', type=int, default=_nf, help=f'num of filters for the 1st pyramid block')
 
     def _check_input_size(self, n_pyramid, do_assert=False) -> bool:
         mult = 2 ** (1 + n_pyramid)  # minimum multiple for image width and height

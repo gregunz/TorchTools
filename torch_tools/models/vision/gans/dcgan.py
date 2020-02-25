@@ -71,9 +71,8 @@ class DCGAN(GAN, FISModel):
 
     @staticmethod
     def add_argz(parser: ArgumentParser):
-        parser.add_argument('--latent_dim', type=int, default=_ld, help=f'latent dim (default: {_ld})')
-        parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks (default: {_np})')
-        parser.add_argument('--n_filters', type=int, default=_nf,
-                            help=f'num of filters for the 1st pyramid block (default: {_nf})')
+        parser.add_argument('--latent_dim', type=int, default=_ld, help=f'latent dim')
+        parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks')
+        parser.add_argument('--n_filters', type=int, default=_nf, help=f'num of filters for the 1st pyramid block')
         parser.add_argument('--no_custom_weight_init', action='store_false', default=not _nf,
                             help=f'use this flag for not using the weight initialization proposed in the paper')

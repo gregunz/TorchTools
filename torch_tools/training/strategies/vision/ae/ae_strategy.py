@@ -11,14 +11,17 @@ from torch_tools.training.util import ImageLogger
 
 class AEStrategy(SimpleStrategy, ImageLogger):
     def __init__(self, auto_encoder: nn.Module, lr: float, betas: Tuple[float, float], log_dir: Union[str, Path],
-                 output_to_img=None, **kwargs):
+                 weight_decay: float, output_to_img=None, **kwargs):
         SimpleStrategy.__init__(
             self,
             net=auto_encoder,
             lr=lr, betas=betas,
             log_dir=log_dir,
+            weight_decay=weight_decay,
         )
         ImageLogger.__init__(self, output_to_image=output_to_img)
+        self.best_loss = None
+        self.best_weights = None
 
     def loss(self, output, target):
         return F.mse_loss(output, target)
@@ -74,6 +77,13 @@ class AEStrategy(SimpleStrategy, ImageLogger):
             'validation/epoch/loss_std': losses.std(),
         }
         self.log(logs, global_step=epoch_idx)
+
+        loss_float = loss.item()
+        if self.best_loss is None or loss_float < self.best_loss:
+            print(f'best weights saved at epoch = {epoch_idx}')
+            self.best_loss = loss_float
+            self.best_weights = self.net.state_dict()
+
         return {
             'val_loss': loss.item()
         }

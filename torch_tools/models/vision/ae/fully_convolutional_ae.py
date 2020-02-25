@@ -7,6 +7,7 @@ _lc = 128
 _nf = 64
 _np = 3
 
+
 class FCAE(AE):
     """
     Fully Convolutional AutoEncoder
@@ -42,7 +43,6 @@ class FCAE(AE):
 
     @staticmethod
     def add_argz(parser: ArgumentParser):
-        parser.add_argument('--latent_channels', type=int, default=_lc, help=f'latent channels (default: {_lc})')
-        parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks (default: {_np})')
-        parser.add_argument('--n_filters', type=int, default=_nf,
-                            help=f'num of filters for the 1st pyramid block (default: {_nf})')
+        parser.add_argument('--latent_channels', type=int, default=_lc, help=f'latent channels')
+        parser.add_argument('--n_pyramid', type=int, default=_np, help=f'number of pyramid blocks)')
+        parser.add_argument('--n_filters', type=int, default=_nf, help=f'num of filters for the 1st pyramid block')

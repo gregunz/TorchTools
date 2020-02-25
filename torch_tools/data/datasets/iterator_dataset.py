@@ -1,5 +1,5 @@
-import copy
 from collections import Iterator
+from itertools import tee
 from typing import List, Union
 
 from torch.utils.data import Dataset
@@ -12,10 +12,9 @@ class IteratorDataset(Dataset):
                 length = len(iterator)
             except TypeError:
                 pass
+        self.__iterator_original, self.__iterator = tee(iterator)
         self.__length = length
         self.__repeat_when_empty = repeat_when_empty
-        self.__iterator_original = iterator
-        self.__iterator = iter(copy.copy(iterator))
 
     def __getitem__(self, idx):
         try:
@@ -23,11 +22,13 @@ class IteratorDataset(Dataset):
         except StopIteration as e:
             if not self.__repeat_when_empty:
                 raise e
-            self.__iterator = iter(copy.copy(self.__iterator_original))
+            self.__iterator_original, self.__iterator = tee(self.__iterator_original)
             return self.__getitem__(idx)
 
-
     def __len__(self):
-        if self.__length is not None:
-            return self.__length
-        raise ValueError('This iterator has unknown length. Define it at instantiation.')
+        # if self.__length is None:
+        #     raise ValueError('This iterator has unknown length. Define it at instantiation.')
+        return self.__length
+
+    def __iter__(self):
+        return tee(self.__iterator_original)[1]

@@ -11,6 +11,7 @@ class ClassifierStrategy(SimpleStrategy):
     It applies a LogSoftmax on the logits and optimizes the Negative Log Likelihood Loss.
     It also logs useful metrics.
     """
+
     def loss(self, output, target):
         return F.nll_loss(F.log_softmax(output, dim=1), target)
 

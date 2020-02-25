@@ -3,8 +3,8 @@ from torch.utils.data import Dataset
 
 class MapDataset(Dataset):
     """
-    Given a dataset, creates a dataset which applies a transform function
-    to its items lazily (only when item is called).
+    Given a dataset, creates a dataset which applies a mapping function
+    to its items (lazily, only when an item is called).
 
     Note that data is not cloned/copied from the initial dataset.
     """
